@@ -1,32 +1,34 @@
 # Watchtower
 
-> An AI-powered market analysis and trading intelligence system that combines multi-timeframe technical analysis, market-structure detection, signal confluence, and LLM-based reasoning.
+> An AI-powered market analysis and decision-support system that combines multi-timeframe technical analysis, market-structure detection, signal confluence, and LLM-based reasoning.
 
-AI Watchtower is an end-to-end trading intelligence platform designed to continuously analyze market data, identify technical structures, build confluence-based trade setups, and use an LLM reasoning layer to validate and explain potential setups.
+## Why I Built It
 
-The system combines deterministic technical analysis with AI-assisted reasoning rather than relying solely on an LLM to interpret raw market data.
+Analyzing multiple timeframes manually and repeatedly feeding screenshots into an LLM is slow, repetitive, and difficult to scale when market conditions are changing quickly.
 
----
+I wanted to replace that workflow with a system that continuously consumes structured market data, performs multi-timeframe analysis, identifies confluences, and uses AI to reason over the resulting market state.
 
 ## Overview
 
-AI Watchtower analyzes market data across multiple timeframes, from higher-timeframe structure down to lower-timeframe execution signals.
+Watchtower is an end-to-end market intelligence platform designed to continuously analyze market data, identify technical structures, build confluence-based setups, and use an LLM reasoning layer to validate and explain potential setups.
 
-The system detects:
+The system combines deterministic technical analysis with AI-assisted reasoning rather than relying solely on an LLM to interpret raw market data.
+
+### Watchtower currently analyzes:
 
 - Market trends
 - Break of Structure (BOS)
 - Change of Character (CHoCH)
 - Liquidity sweeps
-- Order blocks
+- Order Blocks
 - Fair Value Gaps (FVGs)
 - Multi-timeframe confluence
 - Directional market bias
 - Potential trade setups
 
-Detected signals are transformed into structured market state and passed through a confluence engine before being evaluated by an LLM reasoning layer.
+Detected signals are transformed into structured market state and passed through a confluence engine before being evaluated by the AI reasoning layer.
 
-The result is presented through a real-time dashboard and distributed through multiple notification channels.
+The resulting analysis is presented through a real-time dashboard and distributed through multiple notification channels.
 
 ---
 
@@ -66,16 +68,58 @@ The result is presented through a real-time dashboard and distributed through mu
                                │
                                ▼
               ┌────────────────────────────────────┐
-              │       AI Reasoning Layer           │
+              │         AI Reasoning Layer         │
               │                                    │
-              │       OpenAI + LangGraph            │
+              │         OpenAI + LangGraph         │
               │                                    │
-              │  Setup validation + explanation    │
+              │    Setup validation + explanation  │
               └────────────────┬───────────────────┘
                                │
                 ┌──────────────┼──────────────┐
                 ▼              ▼              ▼
           ┌──────────┐   ┌───────────┐   ┌──────────┐
           │ Flutter  │   │ Telegram  │   │ Discord  │
-          │Dashboard │   │ Alerts    │   │ Alerts   │
+          │ Dashboard│   │ Alerts    │   │ Alerts   │
           └──────────┘   └───────────┘   └──────────┘
+
+
+
+## Tech Stack
+**AI / LLM**
+- OpenAI
+- LangGraph
+- LLM-based reasoning
+- Structured AI context
+**Backend**
+- Python
+- FastAPI
+- PostgreSQL
+- SQLAlchemy
+- Redis
+- Celery
+**Frontend**
+- Flutter
+- Riverpod
+- Syncfusion Charts
+
+**Infrastructure**
+- Docker
+- GitHub Actions
+- CI/CD
+
+**Integrations**
+- Telegram
+- Discord
+- Push Notifications
+
+## Status
+
+🚧 Active Development
+
+Watchtower is currently being developed toward a production-ready market monitoring and decision-support system.
+
+### Disclaimer
+
+Watchtower is a software and research project for market analysis and decision support.
+
+It does not provide financial advice or guarantee trading outcomes.
