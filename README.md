@@ -92,6 +92,7 @@ The resulting analysis is presented through a real-time dashboard and distribute
 - LangGraph
 - LLM-based reasoning
 - Structured AI context
+
 **Backend**
 - Python
 - FastAPI
@@ -99,6 +100,7 @@ The resulting analysis is presented through a real-time dashboard and distribute
 - SQLAlchemy
 - Redis
 - Celery
+
 **Frontend**
 - Flutter
 - Riverpod
