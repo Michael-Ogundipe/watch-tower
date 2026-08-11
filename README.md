@@ -120,5 +120,9 @@ The resulting analysis is presented through a real-time dashboard and distribute
 
 Watchtower is currently being developed toward a production-ready market monitoring and decision-support system.
 
+## Disclaimer
 
+Watchtower is a software and research project for market analysis and decision support.
+
+It does not provide financial advice or guarantee trading outcomes.
 
