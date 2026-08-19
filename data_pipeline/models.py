@@ -32,3 +32,14 @@ class Candle:
     low: float
     close: float
     timestamp: datetime
+
+
+
+class SwingType(Enum):
+    HIGH = "high"
+    LOW = "low"
+
+@dataclass
+class SwingPoint:
+    candle: Candle
+    type: SwingType
