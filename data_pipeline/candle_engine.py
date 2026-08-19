@@ -83,4 +83,6 @@ class CandleEngine:
 
     def initialize(self, candles: list[Candle]):
         self.candles = candles
-        self.current_candle = None
+       
+        if candles:
+            self.current_candle = candles[-1]
