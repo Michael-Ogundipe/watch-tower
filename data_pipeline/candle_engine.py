@@ -6,7 +6,9 @@ from models import Candle, Tick, Timeframe
 class CandleEngine:
     def __init__(self, timeframe: Timeframe):
         self.timeframe = timeframe
+        self.candles = []
         self.current_candle = None
+    
 
     def _get_candle_start(self, timestamp: datetime) -> datetime:
         timestamp_seconds = int(timestamp.timestamp())
@@ -43,6 +45,7 @@ class CandleEngine:
         # Tick belongs to a new candle
         if candle_start > self.current_candle.timestamp:
             completed_candle = self.current_candle
+            self.candles.append(completed_candle)
 
             self.current_candle = Candle(
                 symbol=tick.symbol,
@@ -70,3 +73,14 @@ class CandleEngine:
         self.current_candle.close = tick.quote
 
         return None
+
+
+    def load_historical_candles(self, candles: list[Candle]):
+        self.candles = candles
+
+        if candles:
+            self.current_candle = candles[-1]
+
+    def initialize(self, candles: list[Candle]):
+        self.candles = candles
+        self.current_candle = None
