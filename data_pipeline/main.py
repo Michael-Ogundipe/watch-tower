@@ -20,8 +20,24 @@ async def main():
     print(f"Swing highs: {len(swing_highs)}")
     print(f"Swing lows: {len(swing_lows)}")
 
-    print("Latest swing high:", swing_highs[-1])
-    print("Latest swing low:", swing_lows[-1])
+    if len(swing_highs) >= 2:
+        result = structure.classify_swing(
+            swing_highs[-2],
+            swing_highs[-1],
+        )
+
+        print("Latest high structure:", result)
+
+
+    if len(swing_lows) >= 2:
+        result = structure.classify_swing(
+            swing_lows[-2],
+            swing_lows[-1],
+        )
+
+        print("Latest low structure:", result)
+        
+
 
     await service.run()
 

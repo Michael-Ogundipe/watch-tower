@@ -1,9 +1,12 @@
-from models import Candle, SwingPoint, SwingType
+from models import Candle, SwingPoint, SwingType, StructureType
 
 
 class MarketStructure:
     def __init__(self, candles: list[Candle]):
         self.candles = candles
+
+        self.swing_highs = self.find_swing_highs()
+        self.swing_lows = self.find_swing_lows()
 
 
     # Finds confirmed swing highs using the candle before and after each candidate.
@@ -50,6 +53,73 @@ class MarketStructure:
 
         return swing_lows
 
-    
+    def process_candle(self, candle: Candle):
+        self.candles.append(candle)
 
-    
+        if len(self.candles) < 3:
+            return
+
+        previous = self.candles[-3]
+        current = self.candles[-2]
+        next_candle = self.candles[-1]
+
+        if (
+            current.high > previous.high
+            and current.high > next_candle.high
+        ):
+            swing = SwingPoint(
+                candle=current,
+                type=SwingType.HIGH,
+            )
+
+            self.swing_highs.append(swing)
+
+        if (
+            current.low < previous.low
+            and current.low < next_candle.low
+        ):
+            swing = SwingPoint(
+                candle=current,
+                type=SwingType.LOW,
+            )
+
+            self.swing_lows.append(swing)
+
+    def get_latest_swing_high(self):
+        if not self.swing_highs:
+            return None
+
+        return self.swing_highs[-1]
+
+
+    def get_latest_swing_low(self):
+        if not self.swing_lows:
+            return None
+
+        return self.swing_lows[-1]
+
+
+    def classify_swing(
+        self,
+        previous: SwingPoint,
+        current: SwingPoint,
+    ) -> StructureType | None:
+
+        if previous.type != current.type:
+            return None
+
+        if current.type == SwingType.HIGH:
+            if current.candle.high > previous.candle.high:
+                return StructureType.HH
+
+            return StructureType.LH
+
+        if current.type == SwingType.LOW:
+            if current.candle.low > previous.candle.low:
+                return StructureType.HL
+
+            return StructureType.LL
+
+        return None
+
+        

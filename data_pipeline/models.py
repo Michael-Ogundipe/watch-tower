@@ -34,7 +34,6 @@ class Candle:
     timestamp: datetime
 
 
-
 class SwingType(Enum):
     HIGH = "high"
     LOW = "low"
@@ -43,3 +42,10 @@ class SwingType(Enum):
 class SwingPoint:
     candle: Candle
     type: SwingType
+
+
+class StructureType(Enum):
+    HH = "higher_high"
+    HL = "higher_low"
+    LH = "lower_high"
+    LL = "lower_low"

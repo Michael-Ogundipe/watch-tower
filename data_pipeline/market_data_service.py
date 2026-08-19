@@ -1,6 +1,7 @@
 from deriv_client import DerivClient
 from candle_engine import CandleEngine
 from models import Candle, Timeframe
+from market_structure import MarketStructure
 
 
 TIMEFRAMES = [
@@ -22,6 +23,8 @@ class MarketDataService:
             for timeframe in TIMEFRAMES
         }
 
+        self.structures = {}
+
     async def initialize(self):
         await self.client.connect()
 
@@ -33,6 +36,8 @@ class MarketDataService:
             )
 
             engine.initialize(candles)
+
+            self.structures[timeframe] = MarketStructure(candles)
 
             print(
                 f"Loaded {len(candles)} "
@@ -51,8 +56,28 @@ class MarketDataService:
                 completed_candle = engine.process_tick(tick)
 
                 if completed_candle:
+                    timeframe = completed_candle.timeframe
+
+                    structure = self.structures[timeframe]
+
+                    structure.process_candle(completed_candle)
+
+                    latest_high = structure.get_latest_swing_high()
+                    latest_low = structure.get_latest_swing_low()
+
                     print(
-                        f"Completed "
-                        f"{completed_candle.timeframe.name}: "
+                        f"Completed {timeframe.name}: "
                         f"{completed_candle}"
                     )
+
+                    if latest_high:
+                        print(
+                            f"{timeframe.name} latest swing high: "
+                            f"{latest_high}"
+                        )
+
+                    if latest_low:
+                        print(
+                            f"{timeframe.name} latest swing low: "
+                            f"{latest_low}"
+                        )
