@@ -3,7 +3,7 @@ from models import Candle, SwingPoint, SwingType, StructureType, StructurePoint
 
 class MarketStructure:
     def __init__(self, candles: list[Candle]):
-        self.candles = candles
+        self.candles = list(candles)
         
         self.swing_highs = self.find_swing_highs()
         self.swing_lows = self.find_swing_lows()
@@ -187,10 +187,16 @@ class MarketStructure:
         structure_type = self.classify_swing(previous, swing)
 
         if structure_type:
-            self.structure_points.append(
-                StructurePoint(
-                    swing=swing,
-                    structure_type=structure_type,
-                )
-            )      
+            structure_point = StructurePoint(
+                swing=swing,
+                structure_type=structure_type,
+            )
+
+            self.structure_points.append(structure_point)
+
+            print(
+                f"New structure: "
+                f"{structure_type.value.upper()} "
+                f"at {swing.candle.timestamp}"
+            )
 

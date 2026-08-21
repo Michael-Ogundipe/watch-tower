@@ -55,3 +55,17 @@ class StructureType(Enum):
 class StructurePoint:
     swing: SwingPoint
     structure_type: StructureType
+
+
+class BreakDirection(Enum):
+    BULLISH = "bullish"
+    BEARISH = "bearish"
+
+
+@dataclass
+class BreakOfStructure:
+    timeframe: Timeframe
+    direction: BreakDirection
+    broken_swing: SwingPoint
+    candle: Candle
+

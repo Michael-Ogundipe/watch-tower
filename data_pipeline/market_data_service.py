@@ -2,6 +2,7 @@ from deriv_client import DerivClient
 from candle_engine import CandleEngine
 from models import Candle, Timeframe
 from market_structure import MarketStructure
+from bos_detector import BOSDetector
 
 
 TIMEFRAMES = [
@@ -24,6 +25,10 @@ class MarketDataService:
         }
 
         self.structures = {}
+        self.bos_detectors = {
+            timeframe: BOSDetector(timeframe)
+            for timeframe in TIMEFRAMES
+        }
 
     async def initialize(self):
         await self.client.connect()
@@ -61,6 +66,21 @@ class MarketDataService:
                     structure = self.structures[timeframe]
 
                     structure.process_candle(completed_candle)
+
+                    bos_detector = self.bos_detectors[timeframe]
+
+                    bos = bos_detector.check(
+                        completed_candle,
+                        structure.swing_highs,
+                        structure.swing_lows,
+                    )
+
+                    if bos:
+                        print(
+                            f"BOS {bos.direction.value.upper()} "
+                            f"on {timeframe.name} "
+                            f"at {bos.candle.timestamp}"
+                        )
 
                     latest_high = structure.get_latest_swing_high()
                     latest_low = structure.get_latest_swing_low()
