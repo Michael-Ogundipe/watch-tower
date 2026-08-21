@@ -49,3 +49,9 @@ class StructureType(Enum):
     HL = "higher_low"
     LH = "lower_high"
     LL = "lower_low"
+
+
+@dataclass
+class StructurePoint:
+    swing: SwingPoint
+    structure_type: StructureType

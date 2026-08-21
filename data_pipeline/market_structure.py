@@ -1,12 +1,14 @@
-from models import Candle, SwingPoint, SwingType, StructureType
+from models import Candle, SwingPoint, SwingType, StructureType, StructurePoint
 
 
 class MarketStructure:
     def __init__(self, candles: list[Candle]):
         self.candles = candles
-
+        
         self.swing_highs = self.find_swing_highs()
         self.swing_lows = self.find_swing_lows()
+        self.structure_points = []
+        self.build_structure()
 
 
     # Finds confirmed swing highs using the candle before and after each candidate.
@@ -63,6 +65,7 @@ class MarketStructure:
         current = self.candles[-2]
         next_candle = self.candles[-1]
 
+        # Check for swing high
         if (
             current.high > previous.high
             and current.high > next_candle.high
@@ -72,6 +75,7 @@ class MarketStructure:
                 type=SwingType.HIGH,
             )
 
+            self._add_structure_point(swing)
             self.swing_highs.append(swing)
 
         if (
@@ -83,6 +87,7 @@ class MarketStructure:
                 type=SwingType.LOW,
             )
 
+            self._add_structure_point(swing)
             self.swing_lows.append(swing)
 
     def get_latest_swing_high(self):
@@ -122,4 +127,70 @@ class MarketStructure:
 
         return None
 
-        
+
+    def build_structure(self):
+        swings = sorted(
+            self.swing_highs + self.swing_lows,
+            key=lambda swing: swing.candle.timestamp,
+        )
+
+        previous_high = None
+        previous_low = None
+
+        for swing in swings:
+
+            if swing.type == SwingType.HIGH:
+                if previous_high is not None:
+                    structure_type = self.classify_swing(
+                        previous_high,
+                        swing,
+                    )
+
+                    if structure_type:
+                        self.structure_points.append(
+                            StructurePoint(
+                                swing=swing,
+                                structure_type=structure_type,
+                            )
+                        )
+
+                previous_high = swing
+
+            else:
+                if previous_low is not None:
+                    structure_type = self.classify_swing(
+                        previous_low,
+                        swing,
+                    )
+
+                    if structure_type:
+                        self.structure_points.append(
+                            StructurePoint(
+                                swing=swing,
+                                structure_type=structure_type,
+                            )
+                        )
+
+                previous_low = swing
+
+    
+
+    def _add_structure_point(self, swing: SwingPoint):
+        if swing.type == SwingType.HIGH:
+            previous = self.swing_highs[-1] if self.swing_highs else None
+        else:
+            previous = self.swing_lows[-1] if self.swing_lows else None
+
+        if previous is None:
+            return
+
+        structure_type = self.classify_swing(previous, swing)
+
+        if structure_type:
+            self.structure_points.append(
+                StructurePoint(
+                    swing=swing,
+                    structure_type=structure_type,
+                )
+            )      
+
