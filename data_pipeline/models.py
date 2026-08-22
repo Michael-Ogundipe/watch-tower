@@ -90,3 +90,17 @@ class MarketStructureState:
     latest_low: SwingPoint | None
     structure_points: list[StructurePoint]
 
+class LiquidityType(Enum):
+    BUY_SIDE = "buy_side"
+    SELL_SIDE = "sell_side"
+
+
+@dataclass
+class LiquidityPool:
+    timeframe: Timeframe
+    liquidity_type: LiquidityType
+    price: float
+    swing_points: list[SwingPoint]
+
+
+
