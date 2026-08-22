@@ -111,4 +111,19 @@ class LiquiditySweep:
     candle: Candle
 
 
+class FVGType(Enum):
+    BULLISH = "bullish"
+    BEARISH = "bearish"
+
+
+@dataclass
+class FairValueGap:
+    timeframe: Timeframe
+    fvg_type: FVGType
+    upper: float
+    lower: float
+    candles: list[Candle]
+
+
+
 

@@ -5,8 +5,7 @@ from market_structure import MarketStructure
 from bos_detector import BOSDetector
 from liquidity_sweep_detector import LiquiditySweepDetector
 from liquidity_detector import LiquidityDetector
-
-
+from fvg_detector import FVGDetector
 
 
 TIMEFRAMES = [
@@ -41,6 +40,11 @@ class MarketDataService:
 
         self.liquidity_detectors = {
             timeframe: LiquidityDetector(timeframe)
+            for timeframe in TIMEFRAMES
+        }
+
+        self.fvg_detectors = {
+            timeframe: FVGDetector(timeframe)
             for timeframe in TIMEFRAMES
         }
 
@@ -89,6 +93,23 @@ class MarketDataService:
                     structure = self.structures[timeframe]
 
                     structure.process_candle(completed_candle)
+
+                    # FVG
+                    fvg_detector = self.fvg_detectors[timeframe]
+
+                    fvg = fvg_detector.check(
+                        structure.candles,
+                    )
+
+                    if fvg:
+                        print(
+                            f"FVG {fvg.fvg_type.value.upper()} "
+                            f"on {timeframe.name} "
+                            f"at {completed_candle.timestamp} "
+                            f"zone: {fvg.lower} - {fvg.upper}"
+                        )
+
+                    # Liquidity
 
                     liquidity_detector = self.liquidity_detectors[timeframe]
 
