@@ -3,6 +3,10 @@ from candle_engine import CandleEngine
 from models import Candle, Timeframe
 from market_structure import MarketStructure
 from bos_detector import BOSDetector
+from liquidity_sweep_detector import LiquiditySweepDetector
+from liquidity_detector import LiquidityDetector
+
+
 
 
 TIMEFRAMES = [
@@ -27,6 +31,16 @@ class MarketDataService:
         self.structures = {}
         self.bos_detectors = {
             timeframe: BOSDetector(timeframe)
+            for timeframe in TIMEFRAMES
+        }
+
+        self.liquidity_sweep_detectors = {
+            timeframe: LiquiditySweepDetector()
+            for timeframe in TIMEFRAMES
+        }
+
+        self.liquidity_detectors = {
+            timeframe: LiquidityDetector(timeframe)
             for timeframe in TIMEFRAMES
         }
 
@@ -75,6 +89,28 @@ class MarketDataService:
                     structure = self.structures[timeframe]
 
                     structure.process_candle(completed_candle)
+
+                    liquidity_detector = self.liquidity_detectors[timeframe]
+
+                    pools = liquidity_detector.detect(
+                        structure.swing_highs,
+                        structure.swing_lows,
+                    )
+
+                    sweep_detector = self.liquidity_sweep_detectors[timeframe]
+
+                    sweep = sweep_detector.check(
+                        completed_candle,
+                        pools,
+                    )
+
+                    if sweep:
+                        print(
+                            f"LIQUIDITY SWEEP "
+                            f"{sweep.liquidity_type.value.upper()} "
+                            f"on {timeframe.name} "
+                            f"at {sweep.candle.timestamp}"
+                        )
                     
                     bos_detector = self.bos_detectors[timeframe]
 
