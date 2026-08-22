@@ -1,6 +1,5 @@
 import asyncio
 import json
-
 import websockets
 
 from models import Candle, Timeframe
@@ -17,7 +16,9 @@ class DerivClient:
         self.websocket = None
 
     async def connect(self):
-        self.websocket = await websockets.connect(DERIV_WS_URL)
+        self.websocket = await websockets.connect(DERIV_WS_URL, ping_interval=20,
+        ping_timeout=60,)
+        
         print("Connected to Deriv!")
 
     
@@ -48,18 +49,31 @@ class DerivClient:
         )
 
     async def subscribe_ticks(self, symbol: str):
-            request = {
-                "ticks": symbol,
-                "subscribe": 1,
-            }
-    
-            await self.websocket.send(json.dumps(request))
-    
-            while True:
-                message = await self.websocket.recv()
-                data = json.loads(message)
-    
-                if data.get("msg_type") != "tick":
-                    continue
-    
-                yield parse_tick(data)
+        while True:
+            try:
+                request = {
+                    "ticks": symbol,
+                    "subscribe": 1,
+                }
+
+                await self.websocket.send(json.dumps(request))
+
+                while True:
+                    message = await self.websocket.recv()
+                    data = json.loads(message)
+
+                    if data.get("msg_type") != "tick":
+                        continue
+
+                    yield parse_tick(data)
+
+            except websockets.exceptions.ConnectionClosed:
+                print("Deriv connection lost. Reconnecting...")
+
+                await asyncio.sleep(3)
+
+                try:
+                    await self.connect()
+                except Exception as error:
+                    print(f"Reconnect failed: {error}")
+                    await asyncio.sleep(5)
