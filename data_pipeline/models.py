@@ -103,4 +103,12 @@ class LiquidityPool:
     swing_points: list[SwingPoint]
 
 
+@dataclass
+class LiquiditySweep:
+    timeframe: Timeframe
+    liquidity_type: LiquidityType
+    pool: LiquidityPool
+    candle: Candle
+
+
 
