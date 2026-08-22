@@ -106,7 +106,8 @@ class MarketDataService:
                             f"FVG {fvg.fvg_type.value.upper()} "
                             f"on {timeframe.name} "
                             f"at {completed_candle.timestamp} "
-                            f"zone: {fvg.lower} - {fvg.upper}"
+                            f"zone: {fvg.lower} - {fvg.upper} "
+                            f"status: {fvg.status.value.upper()}"
                         )
 
                     # Liquidity

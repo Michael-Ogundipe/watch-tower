@@ -116,6 +116,12 @@ class FVGType(Enum):
     BEARISH = "bearish"
 
 
+class FVGStatus(Enum):
+    ACTIVE = "active"
+    MITIGATED = "mitigated"
+    FILLED = "filled"
+
+
 @dataclass
 class FairValueGap:
     timeframe: Timeframe
@@ -123,6 +129,7 @@ class FairValueGap:
     upper: float
     lower: float
     candles: list[Candle]
+    status: FVGStatus = FVGStatus.ACTIVE
 
 
 

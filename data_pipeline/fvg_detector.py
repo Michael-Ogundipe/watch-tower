@@ -3,6 +3,7 @@ from models import (
     FairValueGap,
     FVGType,
     Timeframe,
+    FVGStatus,
 )
 
 
@@ -15,6 +16,11 @@ class FVGDetector:
     def check(self, candles: list[Candle]):
         if len(candles) < 3:
             return None
+
+        current = candles[-1]
+
+        # First update existing FVGs
+        self._update_existing_fvgs(current)
 
         first = candles[-3]
         middle = candles[-2]
@@ -49,3 +55,31 @@ class FVGDetector:
         return None
 
 
+    def _update_existing_fvgs(self, candle: Candle):
+
+        for fvg in self.fvgs:
+
+            if fvg.status == FVGStatus.FILLED:
+                continue
+
+            # Bullish FVG
+            if fvg.fvg_type == FVGType.BULLISH:
+
+                # Completely filled
+                if candle.low <= fvg.lower:
+                    fvg.status = FVGStatus.FILLED
+
+                # Price has entered the zone
+                elif candle.low <= fvg.upper:
+                    fvg.status = FVGStatus.MITIGATED
+
+            # Bearish FVG
+            elif fvg.fvg_type == FVGType.BEARISH:
+
+                # Completely filled
+                if candle.high >= fvg.upper:
+                    fvg.status = FVGStatus.FILLED
+
+                # Price has entered the zone
+                elif candle.high >= fvg.lower:
+                    fvg.status = FVGStatus.MITIGATED
