@@ -1,10 +1,4 @@
-from models import (
-    BreakDirection,
-    BreakOfStructure,
-    Candle,
-    SwingType,
-    Timeframe,
-)
+from models import *
 
 
 class BOSDetector:
@@ -14,7 +8,7 @@ class BOSDetector:
         self.broken_highs = set()
         self.broken_lows = set()
 
-    def check(self, candle: Candle, swing_highs, swing_lows):
+    def check(self, candle: Candle, swing_highs, swing_lows, bias: StructureBias):
 
         if not swing_highs or not swing_lows:
             return None
@@ -27,9 +21,15 @@ class BOSDetector:
             candle.close > latest_high.candle.high
             and latest_high.candle.timestamp not in self.broken_highs
         ):
+            break_type = (
+                BreakType.CHOCH
+                if bias == StructureBias.BEARISH
+                else BreakType.BOS
+            )
             bos = BreakOfStructure(
                 timeframe=self.timeframe,
                 direction=BreakDirection.BULLISH,
+                break_type=break_type,
                 broken_swing=latest_high,
                 candle=candle,
             )
@@ -44,9 +44,17 @@ class BOSDetector:
             candle.close < latest_low.candle.low
             and latest_low.candle.timestamp not in self.broken_lows
         ):
+
+            break_type = (
+                BreakType.CHOCH
+                if bias == StructureBias.BULLISH
+                else BreakType.BOS
+            )
+            
             bos = BreakOfStructure(
                 timeframe=self.timeframe,
                 direction=BreakDirection.BEARISH,
+                break_type=break_type,
                 broken_swing=latest_low,
                 candle=candle,
             )
@@ -57,3 +65,5 @@ class BOSDetector:
             return bos
 
         return None
+
+

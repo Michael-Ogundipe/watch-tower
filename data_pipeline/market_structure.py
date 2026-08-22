@@ -1,4 +1,4 @@
-from models import Candle, SwingPoint, SwingType, StructureType, StructurePoint
+from models import *
 
 
 class MarketStructure:
@@ -199,4 +199,61 @@ class MarketStructure:
                 f"{structure_type.value.upper()} "
                 f"at {swing.candle.timestamp}"
             )
+
+
+    def get_bias(self) -> StructureBias:
+        if not self.structure_points:
+            return StructureBias.NEUTRAL
+
+        latest_high = None
+        latest_low = None
+
+        for point in reversed(self.structure_points):
+            if point.swing.type == SwingType.HIGH and latest_high is None:
+                latest_high = point
+
+            if point.swing.type == SwingType.LOW and latest_low is None:
+                latest_low = point
+
+            if latest_high and latest_low:
+                break
+
+        if latest_high is None or latest_low is None:
+            return StructureBias.NEUTRAL
+
+        if latest_high.structure_type == StructureType.HH:
+            if latest_low.structure_type == StructureType.HL:
+                return StructureBias.BULLISH
+
+        if latest_high.structure_type == StructureType.LH:
+            if latest_low.structure_type == StructureType.LL:
+                return StructureBias.BEARISH
+
+        return StructureBias.NEUTRAL
+
+
+    def get_state(self) -> MarketStructureState:
+        latest_high = None
+        latest_low = None
+
+        for point in reversed(self.structure_points):
+            if point.swing.type == SwingType.HIGH and latest_high is None:
+                latest_high = point.swing
+
+            if point.swing.type == SwingType.LOW and latest_low is None:
+                latest_low = point.swing
+
+            if latest_high and latest_low:
+                break
+
+        return MarketStructureState(
+            timeframe=latest_high.candle.timeframe
+            if latest_high
+            else self.candles[-1].timeframe,
+            bias=self.get_bias(),
+            latest_high=latest_high,
+            latest_low=latest_low,
+            structure_points=self.structure_points.copy(),
+        )
+
 

@@ -54,6 +54,15 @@ class MarketDataService:
 
         return engine.candles
 
+
+    def get_structure_state(self, timeframe: Timeframe):
+        structure = self.structures.get(timeframe)
+
+        if structure is None:
+            return None
+
+        return structure.get_state()
+
     async def run(self):
         async for tick in self.client.subscribe_ticks(self.symbol):
 
@@ -66,18 +75,22 @@ class MarketDataService:
                     structure = self.structures[timeframe]
 
                     structure.process_candle(completed_candle)
-
+                    
                     bos_detector = self.bos_detectors[timeframe]
+
+                    state = structure.get_state()
 
                     bos = bos_detector.check(
                         completed_candle,
                         structure.swing_highs,
                         structure.swing_lows,
+                        state.bias,
                     )
 
                     if bos:
                         print(
-                            f"BOS {bos.direction.value.upper()} "
+                            f"{bos.break_type.value.upper()} "
+                            f"{bos.direction.value.upper()} "
                             f"on {timeframe.name} "
                             f"at {bos.candle.timestamp}"
                         )
@@ -101,3 +114,6 @@ class MarketDataService:
                             f"{timeframe.name} latest swing low: "
                             f"{latest_low}"
                         )
+
+
+                     

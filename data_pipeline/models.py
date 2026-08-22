@@ -62,10 +62,31 @@ class BreakDirection(Enum):
     BEARISH = "bearish"
 
 
+class BreakType(Enum):
+    BOS = "bos"
+    CHOCH = "choch"
+
+
 @dataclass
 class BreakOfStructure:
     timeframe: Timeframe
     direction: BreakDirection
+    break_type: BreakType
     broken_swing: SwingPoint
     candle: Candle
+
+
+class StructureBias(Enum):
+    BULLISH = "bullish"
+    BEARISH = "bearish"
+    NEUTRAL = "neutral"
+
+
+@dataclass
+class MarketStructureState:
+    timeframe: Timeframe
+    bias: StructureBias
+    latest_high: SwingPoint | None
+    latest_low: SwingPoint | None
+    structure_points: list[StructurePoint]
 
