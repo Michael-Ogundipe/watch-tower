@@ -7,6 +7,7 @@ from liquidity_sweep_detector import LiquiditySweepDetector
 from liquidity_detector import LiquidityDetector
 from fvg_detector import FVGDetector
 from order_block_detector import OrderBlockDetector
+from confluence_engine import ConfluenceEngine
 
 
 
@@ -54,6 +55,12 @@ class MarketDataService:
             timeframe: FVGDetector(timeframe)
             for timeframe in TIMEFRAMES
         }
+
+        self.confluence_engine = ConfluenceEngine(
+            self.structures,
+            self.fvg_detectors,
+            self.order_block_detectors,
+        )
 
     async def initialize(self):
         await self.client.connect()
@@ -210,4 +217,18 @@ class MarketDataService:
                             f"{order_block.upper}"
                         )
 
-                        
+                # --------------------------------
+                # CONFLUENCE
+                # --------------------------------
+
+                analysis = self.confluence_engine.analyze()
+
+                if analysis and analysis["score"] >= 3:
+                    print(
+                        f"CONFLUENCE "
+                        f"{analysis['direction'].value.upper()} "
+                        f"SCORE {analysis['score']}"
+                    )
+
+                    for reason in analysis["reasons"]:
+                        print(f"  ✓ {reason}")        

@@ -101,3 +101,10 @@ class OrderBlockDetector:
 
         return updated
 
+
+    def get_active_order_blocks(self):
+        return [
+            order_block
+            for order_block in self.order_blocks
+            if order_block.status != OrderBlockStatus.INVALIDATED
+        ]

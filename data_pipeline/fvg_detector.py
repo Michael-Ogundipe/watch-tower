@@ -84,3 +84,11 @@ class FVGDetector:
 
             elif candle.high >= fvg.lower:
                 fvg.status = FVGStatus.MITIGATED
+
+
+    def get_active_fvgs(self):
+        return [
+            fvg
+            for fvg in self.fvgs
+            if fvg.status != FVGStatus.FILLED
+        ]
