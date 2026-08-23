@@ -19,8 +19,14 @@ class FVGDetector:
 
         current = candles[-1]
 
-        # First update existing FVGs
-        self._update_existing_fvgs(current)
+        # Update existing FVGs
+        for fvg in self.fvgs:
+            old_status = fvg.status
+
+            self._update_fvg_status(fvg, current)
+
+            if fvg.status != old_status:
+                return fvg
 
         first = candles[-3]
         middle = candles[-2]
@@ -55,31 +61,26 @@ class FVGDetector:
         return None
 
 
-    def _update_existing_fvgs(self, candle: Candle):
+    def _update_fvg_status(
+        self,
+        fvg: FairValueGap,
+        candle: Candle,
+    ):
+        if fvg.status == FVGStatus.FILLED:
+            return
 
-        for fvg in self.fvgs:
+        if fvg.fvg_type == FVGType.BULLISH:
 
-            if fvg.status == FVGStatus.FILLED:
-                continue
+            if candle.low <= fvg.lower:
+                fvg.status = FVGStatus.FILLED
 
-            # Bullish FVG
-            if fvg.fvg_type == FVGType.BULLISH:
+            elif candle.low <= fvg.upper:
+                fvg.status = FVGStatus.MITIGATED
 
-                # Completely filled
-                if candle.low <= fvg.lower:
-                    fvg.status = FVGStatus.FILLED
+        elif fvg.fvg_type == FVGType.BEARISH:
 
-                # Price has entered the zone
-                elif candle.low <= fvg.upper:
-                    fvg.status = FVGStatus.MITIGATED
+            if candle.high >= fvg.upper:
+                fvg.status = FVGStatus.FILLED
 
-            # Bearish FVG
-            elif fvg.fvg_type == FVGType.BEARISH:
-
-                # Completely filled
-                if candle.high >= fvg.upper:
-                    fvg.status = FVGStatus.FILLED
-
-                # Price has entered the zone
-                elif candle.high >= fvg.lower:
-                    fvg.status = FVGStatus.MITIGATED
+            elif candle.high >= fvg.lower:
+                fvg.status = FVGStatus.MITIGATED
