@@ -137,6 +137,12 @@ class OrderBlockType(Enum):
     BEARISH = "bearish"
 
 
+class OrderBlockStatus(Enum):
+    ACTIVE = "active"
+    MITIGATED = "mitigated"
+    INVALIDATED = "invalidated"
+
+    
 @dataclass
 class OrderBlock:
     timeframe: Timeframe
@@ -145,3 +151,4 @@ class OrderBlock:
     upper: float
     lower: float
     bos: BreakOfStructure
+    status: OrderBlockStatus = OrderBlockStatus.ACTIVE

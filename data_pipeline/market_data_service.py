@@ -9,6 +9,7 @@ from fvg_detector import FVGDetector
 from order_block_detector import OrderBlockDetector
 
 
+
 TIMEFRAMES = [
     Timeframe.M1,
     Timeframe.M5,
@@ -93,74 +94,106 @@ class MarketDataService:
             for engine in self.engines.values():
                 completed_candle = engine.process_tick(tick)
 
-                if completed_candle:
-                    timeframe = completed_candle.timeframe
+                if not completed_candle:
+                    continue
 
-                    structure = self.structures[timeframe]
+                timeframe = completed_candle.timeframe
+                structure = self.structures[timeframe]
 
-                    structure.process_candle(completed_candle)
+                # Update market structure
+                structure.process_candle(completed_candle)
 
-                    # FVG
-                    fvg_detector = self.fvg_detectors[timeframe]
+                # --------------------------------
+                # FVG
+                # --------------------------------
 
-                    fvg = fvg_detector.check(
-                        structure.candles,
+                fvg_detector = self.fvg_detectors[timeframe]
+
+                fvg = fvg_detector.check(
+                    structure.candles,
+                )
+
+                if fvg:
+                    print(
+                        f"FVG {fvg.fvg_type.value.upper()} "
+                        f"on {timeframe.name} "
+                        f"at {completed_candle.timestamp} "
+                        f"zone: {fvg.lower} - {fvg.upper} "
+                        f"status: {fvg.status.value.upper()}"
                     )
 
-                    if fvg:
-                        print(
-                            f"FVG {fvg.fvg_type.value.upper()} "
-                            f"on {timeframe.name} "
-                            f"at {completed_candle.timestamp} "
-                            f"zone: {fvg.lower} - {fvg.upper} "
-                            f"status: {fvg.status.value.upper()}"
-                        )
+                # --------------------------------
+                # LIQUIDITY
+                # --------------------------------
 
-                    # Liquidity
+                liquidity_detector = self.liquidity_detectors[timeframe]
 
-                    liquidity_detector = self.liquidity_detectors[timeframe]
+                pools = liquidity_detector.detect(
+                    structure.swing_highs,
+                    structure.swing_lows,
+                )
 
-                    pools = liquidity_detector.detect(
-                        structure.swing_highs,
-                        structure.swing_lows,
+                sweep_detector = self.liquidity_sweep_detectors[timeframe]
+
+                sweep = sweep_detector.check(
+                    completed_candle,
+                    pools,
+                )
+
+                if sweep:
+                    print(
+                        f"LIQUIDITY SWEEP "
+                        f"{sweep.liquidity_type.value.upper()} "
+                        f"on {timeframe.name} "
+                        f"at {sweep.candle.timestamp}"
                     )
 
-                    sweep_detector = self.liquidity_sweep_detectors[timeframe]
+                # --------------------------------
+                # ORDER BLOCK LIFECYCLE
+                # --------------------------------
 
-                    sweep = sweep_detector.check(
-                        completed_candle,
-                        pools,
+                order_block_detector = self.order_block_detectors[timeframe]
+
+                updated_order_blocks = (
+                    order_block_detector.update_status(
+                        completed_candle
+                    )
+                )
+
+                for order_block in updated_order_blocks:
+                    print(
+                        f"ORDER BLOCK "
+                        f"{order_block.block_type.value.upper()} "
+                        f"{order_block.status.value.upper()} "
+                        f"on {timeframe.name} "
+                        f"zone: {order_block.lower} - "
+                        f"{order_block.upper}"
                     )
 
-                    if sweep:
-                        print(
-                            f"LIQUIDITY SWEEP "
-                            f"{sweep.liquidity_type.value.upper()} "
-                            f"on {timeframe.name} "
-                            f"at {sweep.candle.timestamp}"
-                        )
-                    
-                    bos_detector = self.bos_detectors[timeframe]
+                # --------------------------------
+                # BOS / CHOCH
+                # --------------------------------
 
-                    state = structure.get_state()
+                bos_detector = self.bos_detectors[timeframe]
 
-                    bos = bos_detector.check(
-                        completed_candle,
-                        structure.swing_highs,
-                        structure.swing_lows,
-                        state.bias,
+                state = structure.get_state()
+
+                bos = bos_detector.check(
+                    completed_candle,
+                    structure.swing_highs,
+                    structure.swing_lows,
+                    state.bias,
+                )
+
+                if bos:
+                    print(
+                        f"{bos.break_type.value.upper()} "
+                        f"{bos.direction.value.upper()} "
+                        f"on {timeframe.name} "
+                        f"at {bos.candle.timestamp}"
                     )
 
-                    if bos:
-                        print(
-                            f"{bos.break_type.value.upper()} "
-                            f"{bos.direction.value.upper()} "
-                            f"on {timeframe.name} "
-                            f"at {bos.candle.timestamp}"
-                        )
-
-                    order_block_detector = self.order_block_detectors[timeframe]
-
+                    # Create a new Order Block from BOS / CHOCH
                     order_block = order_block_detector.check(
                         bos,
                         structure.candles,
@@ -170,30 +203,11 @@ class MarketDataService:
                         print(
                             f"ORDER BLOCK "
                             f"{order_block.block_type.value.upper()} "
+                            f"CREATED "
                             f"on {timeframe.name} "
                             f"at {order_block.candle.timestamp} "
-                            f"zone: {order_block.lower} - {order_block.upper}"
+                            f"zone: {order_block.lower} - "
+                            f"{order_block.upper}"
                         )
 
-                    latest_high = structure.get_latest_swing_high()
-                    latest_low = structure.get_latest_swing_low()
-
-                    print(
-                        f"Completed {timeframe.name}: "
-                        f"{completed_candle}"
-                    )
-
-                    if latest_high:
-                        print(
-                            f"{timeframe.name} latest swing high: "
-                            f"{latest_high}"
-                        )
-
-                    if latest_low:
-                        print(
-                            f"{timeframe.name} latest swing low: "
-                            f"{latest_low}"
-                        )
-
-
-                     
+                        
