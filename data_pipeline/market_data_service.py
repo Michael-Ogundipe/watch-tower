@@ -6,6 +6,7 @@ from bos_detector import BOSDetector
 from liquidity_sweep_detector import LiquiditySweepDetector
 from liquidity_detector import LiquidityDetector
 from fvg_detector import FVGDetector
+from order_block_detector import OrderBlockDetector
 
 
 TIMEFRAMES = [
@@ -31,6 +32,11 @@ class MarketDataService:
         self.bos_detectors = {
             timeframe: BOSDetector(timeframe)
             for timeframe in TIMEFRAMES
+        }
+
+        self.order_block_detectors = {
+            timeframe: OrderBlockDetector(timeframe)
+            for timeframe in Timeframe
         }
 
         self.liquidity_sweep_detectors = {
@@ -151,6 +157,22 @@ class MarketDataService:
                             f"{bos.direction.value.upper()} "
                             f"on {timeframe.name} "
                             f"at {bos.candle.timestamp}"
+                        )
+
+                    order_block_detector = self.order_block_detectors[timeframe]
+
+                    order_block = order_block_detector.check(
+                        bos,
+                        structure.candles,
+                    )
+
+                    if order_block:
+                        print(
+                            f"ORDER BLOCK "
+                            f"{order_block.block_type.value.upper()} "
+                            f"on {timeframe.name} "
+                            f"at {order_block.candle.timestamp} "
+                            f"zone: {order_block.lower} - {order_block.upper}"
                         )
 
                     latest_high = structure.get_latest_swing_high()

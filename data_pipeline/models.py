@@ -132,5 +132,16 @@ class FairValueGap:
     status: FVGStatus = FVGStatus.ACTIVE
 
 
+class OrderBlockType(Enum):
+    BULLISH = "bullish"
+    BEARISH = "bearish"
 
 
+@dataclass
+class OrderBlock:
+    timeframe: Timeframe
+    block_type: OrderBlockType
+    candle: Candle
+    upper: float
+    lower: float
+    bos: BreakOfStructure
