@@ -67,3 +67,11 @@ class LiquiditySweepDetector:
         )
 
         return sweep
+
+
+    def get_latest_sweep(self):
+        if not self.sweeps:
+            return None
+
+        return self.sweeps[-1]
+

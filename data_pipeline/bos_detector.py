@@ -67,3 +67,10 @@ class BOSDetector:
         return None
 
 
+    def get_latest_break(self):
+        if not self.breaks:
+            return None
+
+        return self.breaks[-1]
+
+

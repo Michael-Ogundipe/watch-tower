@@ -60,6 +60,8 @@ class MarketDataService:
             self.structures,
             self.fvg_detectors,
             self.order_block_detectors,
+            self.liquidity_sweep_detectors,
+            self.bos_detectors,
         )
 
     async def initialize(self):
@@ -223,12 +225,23 @@ class MarketDataService:
 
                 analysis = self.confluence_engine.analyze()
 
-                if analysis and analysis["score"] >= 3:
-                    print(
-                        f"CONFLUENCE "
-                        f"{analysis['direction'].value.upper()} "
-                        f"SCORE {analysis['score']}"
+                if analysis:
+                    signal_key = (
+                        analysis["direction"],
+                        analysis["score"],
+                        tuple(analysis["reasons"]),
                     )
 
-                    for reason in analysis["reasons"]:
-                        print(f"  ✓ {reason}")        
+                    if signal_key != self.last_confluence_signal:
+                        print(
+                            f"CONFLUENCE "
+                            f"{analysis['direction'].value.upper()} "
+                            f"SCORE {analysis['score']}"
+                        )
+
+                        for reason in analysis["reasons"]:
+                            print(f"  ✓ {reason}")
+
+                        self.last_confluence_signal = signal_key
+
+                        
