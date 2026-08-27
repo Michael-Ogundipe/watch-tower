@@ -1,5 +1,6 @@
 from models import Candle, Timeframe
 from market_structure import MarketStructure
+from trade_simulator import TradeSimulator
 
 
 class ReplayEngine:
@@ -29,5 +30,28 @@ class ReplayEngine:
             key=lambda candle: candle.timestamp
         )
 
+        trade_simulator = TradeSimulator()
+
         for candle in replay_candles:
-            self.service.process_completed_candle(candle)
+
+            # Manage existing trade first
+            trade_simulator.process_candle(candle)
+
+            # Process market analysis
+            signal = self.service.process_completed_candle(candle)
+
+            # Create a new trade from a valid confluence
+            if signal:
+                trade = trade_simulator.create_trade(
+                    signal,
+                    candle.timestamp,
+                )
+
+                if trade:
+                    print(
+                        f"TRADE OPENED "
+                        f"{trade.direction.value.upper()} "
+                        f"at {trade.entry} "
+                        f"SL {trade.stop_loss} "
+                        f"TP {trade.take_profit}"
+                    )

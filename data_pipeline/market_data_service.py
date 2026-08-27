@@ -223,6 +223,11 @@ class MarketDataService:
 
                 self.last_confluence_signal = signal_key
 
+                return analysis
+
+        return None
+    
+
     
 
     async def run(self):
