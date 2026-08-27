@@ -40,6 +40,14 @@ class ReplayEngine:
             # Process market analysis
             signal = self.service.process_completed_candle(candle)
 
+            if signal:
+                print(
+                    f"REPLAY SIGNAL FOUND "
+                    f"{signal['direction'].value.upper()} "
+                    f"SCORE {signal['score']} "
+                    f"TIME {candle.timestamp}"
+                )
+
             # Create a new trade from a valid confluence
             if signal:
                 trade = trade_simulator.create_trade(
