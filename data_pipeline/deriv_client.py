@@ -4,7 +4,6 @@ import websockets
 
 from models import Candle, Timeframe
 from parser import parse_candles, parse_tick
-from parser import parse_tick
 from candle_engine import CandleEngine
 
 
@@ -18,7 +17,7 @@ class DerivClient:
     async def connect(self):
         self.websocket = await websockets.connect(DERIV_WS_URL, ping_interval=20,
         ping_timeout=60,)
-        
+
         print("Connected to Deriv!")
 
     
