@@ -3,7 +3,7 @@ import asyncio
 from models import Timeframe
 from market_data_service import MarketDataService
 from replay_engine import ReplayEngine
-from market_structure import MarketStructure
+
 
 async def main():
     service = MarketDataService("R_75")
@@ -31,10 +31,6 @@ async def main():
             f"first={candles[0].timestamp}, "
             f"last={candles[-1].timestamp}"
         )
-
-    # Initialize structures using the historical candles
-    for timeframe, candles in candles_by_timeframe.items():
-        service.structures[timeframe] = MarketStructure(candles)
 
     replay_engine = ReplayEngine(service)
 

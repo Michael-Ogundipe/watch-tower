@@ -5,6 +5,7 @@ from models import BreakDirection
 
 
 class TradeStatus(Enum):
+    PENDING = "pending"
     OPEN = "open"
     WIN = "win"
     LOSS = "loss"
@@ -20,6 +21,6 @@ class Trade:
 
     entry_time: object
 
-    status: TradeStatus = TradeStatus.OPEN
+    status: TradeStatus = TradeStatus.PENDING
     exit: float | None = None
     exit_time: object | None = None

@@ -111,12 +111,17 @@ class ConfluenceEngine:
                 fvg
                 for fvg in active_fvgs
                 if (
-                    direction == BreakDirection.BULLISH
-                    and fvg.fvg_type == FVGType.BULLISH
-                )
-                or (
-                    direction == BreakDirection.BEARISH
-                    and fvg.fvg_type == FVGType.BEARISH
+                    fvg.status == FVGStatus.ACTIVE
+                    and (
+                        (
+                            direction == BreakDirection.BULLISH
+                            and fvg.fvg_type == FVGType.BULLISH
+                        )
+                        or (
+                            direction == BreakDirection.BEARISH
+                            and fvg.fvg_type == FVGType.BEARISH
+                        )
+                    )
                 )
             ),
             None,
@@ -143,12 +148,17 @@ class ConfluenceEngine:
                 ob
                 for ob in active_order_blocks
                 if (
-                    direction == BreakDirection.BULLISH
-                    and ob.block_type == OrderBlockType.BULLISH
-                )
-                or (
-                    direction == BreakDirection.BEARISH
-                    and ob.block_type == OrderBlockType.BEARISH
+                    ob.status == OrderBlockStatus.ACTIVE
+                    and (
+                        (
+                            direction == BreakDirection.BULLISH
+                            and ob.block_type == OrderBlockType.BULLISH
+                        )
+                        or (
+                            direction == BreakDirection.BEARISH
+                            and ob.block_type == OrderBlockType.BEARISH
+                        )
+                    )
                 )
             ),
             None,
