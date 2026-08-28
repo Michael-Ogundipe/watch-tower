@@ -114,15 +114,6 @@ class MarketDataService:
             structure.candles,
         )
 
-        if fvg:
-            print(
-                f"FVG {fvg.fvg_type.value.upper()} "
-                f"on {timeframe.name} "
-                f"at {completed_candle.timestamp} "
-                f"zone: {fvg.lower} - {fvg.upper} "
-                f"status: {fvg.status.value.upper()}"
-            )
-
         # Liquidity
         liquidity_detector = self.liquidity_detectors[timeframe]
 
@@ -138,32 +129,12 @@ class MarketDataService:
             pools,
         )
 
-        if sweep:
-            print(
-                f"LIQUIDITY SWEEP "
-                f"{sweep.liquidity_type.value.upper()} "
-                f"on {timeframe.name} "
-                f"at {sweep.candle.timestamp}"
-            )
-
         # Order Block lifecycle
         order_block_detector = self.order_block_detectors[timeframe]
 
-        updated_order_blocks = (
-            order_block_detector.update_status(
-                completed_candle
-            )
+        order_block_detector.update_status(
+            completed_candle
         )
-
-        for order_block in updated_order_blocks:
-            print(
-                f"ORDER BLOCK "
-                f"{order_block.block_type.value.upper()} "
-                f"{order_block.status.value.upper()} "
-                f"on {timeframe.name} "
-                f"zone: {order_block.lower} - "
-                f"{order_block.upper}"
-            )
 
         # BOS / CHOCH
         bos_detector = self.bos_detectors[timeframe]
@@ -178,28 +149,10 @@ class MarketDataService:
         )
 
         if bos:
-            print(
-                f"{bos.break_type.value.upper()} "
-                f"{bos.direction.value.upper()} "
-                f"on {timeframe.name} "
-                f"at {bos.candle.timestamp}"
-            )
-
-            order_block = order_block_detector.check(
+            order_block_detector.check(
                 bos,
                 structure.candles,
             )
-
-            if order_block:
-                print(
-                    f"ORDER BLOCK "
-                    f"{order_block.block_type.value.upper()} "
-                    f"CREATED "
-                    f"on {timeframe.name} "
-                    f"at {order_block.candle.timestamp} "
-                    f"zone: {order_block.lower} - "
-                    f"{order_block.upper}"
-                )
 
         # Confluence
         analysis = self.confluence_engine.analyze()

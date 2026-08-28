@@ -194,12 +194,6 @@ class MarketStructure:
 
             self.structure_points.append(structure_point)
 
-            print(
-                f"New structure: "
-                f"{structure_type.value.upper()} "
-                f"at {swing.candle.timestamp}"
-            )
-
 
     def get_bias(self) -> StructureBias:
         if not self.structure_points:
