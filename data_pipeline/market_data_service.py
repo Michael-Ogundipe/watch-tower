@@ -158,11 +158,8 @@ class MarketDataService:
         analysis = self.confluence_engine.analyze()
 
         if analysis:
-            signal_key = (
-                analysis["direction"],
-                analysis["score"],
-                tuple(analysis["reasons"]),
-            )
+            
+            signal_key = analysis["setup_id"]
 
             if signal_key != self.last_confluence_signal:
                 print(

@@ -197,4 +197,11 @@ class ConfluenceEngine:
             "order_block": matching_ob,
         }
 
+        signal["setup_id"] = (
+            direction,
+            matching_ob.candle.timestamp
+            if matching_ob
+            else None,
+        )
+
         return signal

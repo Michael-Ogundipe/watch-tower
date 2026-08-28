@@ -20,7 +20,7 @@ async def main():
         candles = await service.client.get_candles(
             symbol="R_75",
             timeframe=timeframe,
-            count=1000,
+            count=5000,
         )
 
         candles_by_timeframe[timeframe] = candles
