@@ -4,12 +4,16 @@ from models import *
 class MarketStructure:
     def __init__(self, candles: list[Candle]):
         self.candles = list(candles)
-        
+
         self.swing_highs = self.find_swing_highs()
         self.swing_lows = self.find_swing_lows()
         self.structure_points = []
-        self.build_structure()
 
+        self._latest_structure_high = None
+        self._latest_structure_low = None
+        self._bias = StructureBias.NEUTRAL
+
+        self.build_structure()
 
     # Finds confirmed swing highs using the candle before and after each candidate.
     def find_swing_highs(self):
@@ -32,7 +36,6 @@ class MarketStructure:
                 )
 
         return swing_highs
-
 
     def find_swing_lows(self):
         swing_lows = []
@@ -96,13 +99,11 @@ class MarketStructure:
 
         return self.swing_highs[-1]
 
-
     def get_latest_swing_low(self):
         if not self.swing_lows:
             return None
 
         return self.swing_lows[-1]
-
 
     def classify_swing(
         self,
@@ -126,7 +127,6 @@ class MarketStructure:
             return StructureType.LL
 
         return None
-
 
     def build_structure(self):
         swings = sorted(
@@ -173,7 +173,56 @@ class MarketStructure:
 
                 previous_low = swing
 
-    
+        self._refresh_cached_bias()
+
+    def _refresh_cached_bias(self):
+        self._latest_structure_high = None
+        self._latest_structure_low = None
+
+        for point in reversed(self.structure_points):
+            if (
+                point.swing.type == SwingType.HIGH
+                and self._latest_structure_high is None
+            ):
+                self._latest_structure_high = point
+
+            if (
+                point.swing.type == SwingType.LOW
+                and self._latest_structure_low is None
+            ):
+                self._latest_structure_low = point
+
+            if (
+                self._latest_structure_high is not None
+                and self._latest_structure_low is not None
+            ):
+                break
+
+        self._update_cached_bias()
+
+    def _update_cached_bias(self):
+        high = self._latest_structure_high
+        low = self._latest_structure_low
+
+        if high is None or low is None:
+            self._bias = StructureBias.NEUTRAL
+            return
+
+        if (
+            high.structure_type == StructureType.HH
+            and low.structure_type == StructureType.HL
+        ):
+            self._bias = StructureBias.BULLISH
+            return
+
+        if (
+            high.structure_type == StructureType.LH
+            and low.structure_type == StructureType.LL
+        ):
+            self._bias = StructureBias.BEARISH
+            return
+
+        self._bias = StructureBias.NEUTRAL
 
     def _add_structure_point(self, swing: SwingPoint):
         if swing.type == SwingType.HIGH:
@@ -194,37 +243,15 @@ class MarketStructure:
 
             self.structure_points.append(structure_point)
 
+            if swing.type == SwingType.HIGH:
+                self._latest_structure_high = structure_point
+            else:
+                self._latest_structure_low = structure_point
+
+            self._update_cached_bias()
 
     def get_bias(self) -> StructureBias:
-        if not self.structure_points:
-            return StructureBias.NEUTRAL
-
-        latest_high = None
-        latest_low = None
-
-        for point in reversed(self.structure_points):
-            if point.swing.type == SwingType.HIGH and latest_high is None:
-                latest_high = point
-
-            if point.swing.type == SwingType.LOW and latest_low is None:
-                latest_low = point
-
-            if latest_high and latest_low:
-                break
-
-        if latest_high is None or latest_low is None:
-            return StructureBias.NEUTRAL
-
-        if latest_high.structure_type == StructureType.HH:
-            if latest_low.structure_type == StructureType.HL:
-                return StructureBias.BULLISH
-
-        if latest_high.structure_type == StructureType.LH:
-            if latest_low.structure_type == StructureType.LL:
-                return StructureBias.BEARISH
-
-        return StructureBias.NEUTRAL
-
+        return self._bias
 
     def get_state(self) -> MarketStructureState:
         latest_high = None
@@ -249,5 +276,3 @@ class MarketStructure:
             latest_low=latest_low,
             structure_points=self.structure_points.copy(),
         )
-
-

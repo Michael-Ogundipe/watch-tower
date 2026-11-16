@@ -81,8 +81,15 @@ class CandleEngine:
         if candles:
             self.current_candle = candles[-1]
 
-    def initialize(self, candles: list[Candle]):
-        self.candles = candles
-       
-        if candles:
-            self.current_candle = candles[-1]
+    def initialize(
+        self,
+        candles: list[Candle],
+        *,
+        seed_latest_as_current: bool = True,
+    ):
+        self.candles = list(candles)
+        self.current_candle = (
+            candles[-1]
+            if candles and seed_latest_as_current
+            else None
+        )

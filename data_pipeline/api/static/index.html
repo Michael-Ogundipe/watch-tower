@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Watch Tower</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #151b23; --line: #263140; --ink: #e6edf3;
+    --muted: #8b98a5; --faint: #5c6b7a; --accent: #2f81f7;
+    --win: #3fb950; --loss: #f85149; --warn: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 16px; margin: 0; letter-spacing: .3px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+    padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .dot.up { background: var(--win); } .dot.down { background: var(--loss); }
+  .dot.warn { background: var(--warn); }
+  main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+  section { margin-bottom: 26px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em;
+       color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .card .value { font-size: 24px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+  .filters label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+  select, input, button {
+    background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 7px; padding: 7px 10px; font-size: 13px; font-family: inherit;
+  }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel);
+          border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+  .tag.win { color: var(--win); border-color: var(--win); }
+  .tag.loss { color: var(--loss); border-color: var(--loss); }
+  .tag.pending { color: var(--warn); border-color: var(--warn); }
+  .tag.up { color: var(--win); } .tag.down { color: var(--loss); }
+  .pos { color: var(--win); } .neg { color: var(--loss); }
+  .empty { padding: 26px; text-align: center; color: var(--faint); }
+  .source { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--faint); font-size: 11px; }
+  .note { color: var(--faint); font-size: 11px; margin: 8px 2px 0; }
+  .card.broker { border-color: #2b3f55; }
+  .card .sub { font-size: 11px; color: var(--faint); margin-top: 2px; }
+  .pager { display: flex; gap: 8px; align-items: center; margin-top: 10px; color: var(--muted); font-size: 12px; }
+  .scroll { overflow-x: auto; }
+  .status-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
+  .status-item { background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:11px 13px; min-width:0; }
+  .status-item .label { color:var(--muted); font-size:10px; letter-spacing:.06em; text-transform:uppercase; }
+  .status-item .value { font-size:14px; font-weight:600; overflow-wrap:anywhere; margin-top:3px; }
+  .status-item .sub { color:var(--faint); font-size:10px; overflow-wrap:anywhere; }
+  .event-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-bottom:10px; }
+  .event-filters label { display:flex; flex-direction:column; gap:4px; font-size:10px; color:var(--muted); }
+  .event-row td { white-space:normal; vertical-align:top; }
+  .event-detail { color:var(--faint); font-size:11px; overflow-wrap:anywhere; }
+  .events-viewport {
+    height:clamp(220px, 50vh, 400px);
+    overflow-y:auto;
+    overflow-x:auto;
+    overscroll-behavior:contain;
+    border-radius:10px;
+  }
+  .events-viewport table { border-collapse:separate; border-spacing:0; }
+  .events-viewport thead th {
+    position:sticky;
+    top:0;
+    z-index:1;
+    background:var(--panel);
+  }
+  @media (max-width: 640px) {
+    main { padding: 12px; }
+    th, td { padding: 8px; }
+    .events-viewport { height:clamp(180px, 45vh, 340px); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Watch Tower</h1>
+  <span class="pill" id="instance-label">INSTANCE: —</span>
+  <span class="pill"><span class="dot" id="dot-api"></span><span id="txt-api">API</span></span>
+  <span class="pill"><span class="dot" id="dot-db"></span><span id="txt-db">Database</span></span>
+  <span class="pill"><span class="dot" id="dot-data"></span><span id="txt-data">Market data</span></span>
+  <span class="pill" id="pill-updated" style="margin-left:auto">—</span>
+  <button id="refresh">Refresh</button>
+</header>
+
+<main>
+  <section>
+    <h2>Health / system status</h2>
+    <div class="status-grid" id="health-cards"><div class="empty">Waiting for health status…</div></div>
+    <p class="note" id="health-note">Process and container health is inferred from application heartbeats and database/API checks. Podman restart counts are unavailable without host access.</p>
+  </section>
+
+  <section id="container-section" hidden>
+    <h2>VPS containers</h2>
+    <div class="scroll"><table id="containers"><thead><tr><th>Name</th><th>Status</th><th>Uptime</th><th>Restarts</th><th>Health source</th><th>Last error</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section>
+    <h2>Account <span class="source">from the Deriv account</span></h2>
+    <div class="cards" id="account-cards"></div>
+    <p class="note" id="account-note"></p>
+  </section>
+
+  <section>
+    <h2>Performance <span class="source">calculated by Watch Tower from its own trade journal</span></h2>
+    <div class="cards" id="cards"></div>
+    <p class="note" id="perf-note"></p>
+  </section>
+
+  <section>
+    <h2>Filters</h2>
+    <div class="filters">
+      <label>Symbol<select id="f-symbol"><option value="">All</option></select></label>
+      <label>Timeframe<select id="f-timeframe"><option value="">All</option></select></label>
+      <label>Direction<select id="f-direction"><option value="">All</option></select></label>
+      <label>Result<select id="f-result"><option value="">All</option></select></label>
+      <label>From<input type="date" id="f-start" /></label>
+      <label>To<input type="date" id="f-end" /></label>
+      <button class="primary" id="apply">Apply</button>
+      <button id="clear">Clear</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Active signals <span class="source">currently pending and actionable</span></h2>
+    <div class="scroll"><table id="signals"><thead><tr>
+      <th>Time (UTC)</th><th>Symbol</th><th>Direction</th><th>TF</th>
+      <th class="num">Score</th><th>Zone</th><th>Setup</th><th>Status</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section>
+    <h2>Confluence history <span class="source">historical setup discoveries</span></h2>
+    <div class="filters"><label>Confluence status<select id="c-status"><option value="">All</option><option>FOUND</option></select></label></div>
+    <div class="scroll"><table id="confluences"><thead><tr>
+      <th>Time (UTC)</th><th>Symbol</th><th>Direction</th><th>Timeframe</th>
+      <th class="num">Score</th><th>Setup</th><th>Confluence</th><th>Status</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div class="pager"><button id="conf-prev">Previous</button><button id="conf-next">Next</button><span id="conf-range"></span></div>
+  </section>
+
+  <section>
+    <h2>Recent events</h2>
+    <div class="scroll events-viewport" role="region" aria-label="Recent events" tabindex="0"><table id="events"><thead><tr><th>Time (UTC)</th><th>Severity</th><th>Component</th><th>Event</th><th>Symbol / TF</th><th>Message / reason</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section>
+    <h2>Errors / debug</h2>
+    <div class="event-filters">
+      <label>Instance<select id="ef-instance"><option value="">Current</option><option value="local">local</option><option value="vps">vps</option></select></label>
+      <label>Severity<select id="ef-severity"><option value="issues" selected>WARN + ERROR</option><option value="">All</option><option>ERROR</option><option>WARN</option><option>INFO</option></select></label>
+      <label>Component<select id="ef-component"><option value="">All</option></select></label>
+      <label>Symbol<select id="ef-symbol"><option value="">All</option></select></label>
+      <label>Timeframe<select id="ef-timeframe"><option value="">All</option></select></label>
+      <label>Event type<select id="ef-type"><option value="">All</option></select></label>
+      <label>From<input type="date" id="ef-start" /></label>
+      <label>To<input type="date" id="ef-end" /></label>
+      <button id="ef-apply">Apply</button>
+    </div>
+    <div class="scroll"><table id="errors"><thead><tr><th>Time (UTC)</th><th>Severity</th><th>Component</th><th>Event</th><th>Symbol / TF</th><th>Message / reason / details</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section>
+    <h2>Trade history</h2>
+    <div class="scroll"><table id="trades"><thead><tr>
+      <th>Time (UTC)</th><th>Symbol</th><th>Direction</th>
+      <th class="num">Entry</th><th class="num">Exit</th><th>Result</th><th class="num">P/L</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div class="pager">
+      <button id="prev">Previous</button><button id="next">Next</button>
+      <span id="range"></span>
+    </div>
+  </section>
+</main>
+
+<script>
+const PAGE = 25;
+let offset = 0;
+let confluenceOffset = 0;
+let accountCurrency = "";
+
+const $ = (id) => document.getElementById(id);
+const num = (v, dp = 4) => (v === null || v === undefined || v === "") ? "—" : Number(v).toFixed(dp);
+const esc = (s) => String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+
+function utcMonthStart() {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+$("f-start").value = utcMonthStart();
+
+function shortTime(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (isNaN(d)) return esc(value).slice(0, 19).replace("T", " ");
+  return d.toISOString().slice(0, 19).replace("T", " ");
+}
+
+function duration(seconds) {
+  if (seconds === null || seconds === undefined) return "—";
+  seconds = Math.max(0, Number(seconds));
+  const d = Math.floor(seconds / 86400), h = Math.floor(seconds % 86400 / 3600), m = Math.floor(seconds % 3600 / 60);
+  return `${d ? d + "d " : ""}${h}h ${m}m`;
+}
+
+function statusCard(label, value, sub = "") {
+  return `<div class="status-item"><div class="label">${esc(label)}</div><div class="value">${esc(value ?? "—")}</div><div class="sub">${esc(sub)}</div></div>`;
+}
+
+function params(extra = {}) {
+  const q = new URLSearchParams();
+  const map = { symbol: "f-symbol", timeframe: "f-timeframe", direction: "f-direction", result: "f-result" };
+  for (const [key, id] of Object.entries(map)) {
+    const value = $(id).value;
+    if (value) q.set(key, value);
+  }
+  if ($("f-start").value) q.set("start", $("f-start").value);
+  if ($("f-end").value) q.set("end", $("f-end").value + "T23:59:59");
+  for (const [k, v] of Object.entries(extra)) q.set(k, v);
+  return q.toString();
+}
+
+async function getJSON(path) {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`${path} -> ${response.status}`);
+  return response.json();
+}
+
+function setDot(id, state, text) {
+  $(`dot-${id}`).className = `dot ${state}`;
+  $(`txt-${id}`).textContent = text;
+}
+
+async function loadStatus() {
+  try {
+    const health = await getJSON("/health");
+    $("instance-label").textContent = `INSTANCE: ${String(health.instance_id || "unknown").toUpperCase()}`;
+    setDot("api", "up", "API");
+    setDot("db", health.database.ok ? "up" : "down", health.database.ok ? "Database" : "Database down");
+    const market = health.market_data || {};
+    setDot("data", market.status === "connected" ? "up" : "warn", market.status === "connected" ? "Market data" : "Market data stale/down");
+    const d = health.deriv || {}, b = health.balance_worker || {}, db = health.database || {};
+    const cards = [
+      ["Instance", health.instance_id?.toUpperCase(), "isolated WatchTower instance"],
+      ["Trader", health.trader?.status, `uptime ${duration(health.trader?.uptime_seconds)}`],
+      ["Last heartbeat", shortTime(health.trader?.last_heartbeat), "UTC"],
+      ["Last processed candle", shortTime(health.trader?.last_processed_candle), "UTC"],
+      ["Market data", market.status, `last tick ${shortTime(market.last_tick)}`],
+      ["Reconnects", market.reconnect_count ?? 0, `last reconnect ${shortTime(market.last_reconnect)}`],
+      ["Deriv", d.status, `${d.account_type || "—"} account ${d.account_id || "—"}`],
+      ["Balance", d.balance === null || d.balance === undefined ? "—" : `${num(d.balance, 2)} ${d.currency || ""}`, `${d.open_contract_count ?? 0} open contracts`],
+      ["Database", db.detail, `latency ${db.latency_ms ?? "—"} ms`],
+      ["Last DB write", shortTime(db.last_successful_write), db.last_error ? `error: ${db.last_error.operation || "write"}` : "no recent write error"],
+      ["API", health.api?.status, `uptime ${duration(health.api?.uptime_seconds)}`],
+      ["Balance worker", b.status, `last poll ${shortTime(b.last_successful_poll)}`],
+    ];
+    if (db.last_error) cards.push(["Last DB error", db.last_error.error, `${db.last_error.operation || "database"} · ${shortTime(db.last_error.at)}`]);
+    if (b.last_error) cards.push(["Balance worker error", b.last_error, "latest poll failure"]);
+    $("health-cards").innerHTML = cards.map((c) => statusCard(...c)).join("");
+    const account = await getJSON("/api/account").catch(() => null);
+    if (account?.available) $("health-cards").insertAdjacentHTML("beforeend", statusCard("Account", account.account_id, "redacted Deriv account identifier"));
+    const containers = health.containers || [];
+    $("container-section").hidden = !containers.length;
+    $("containers").querySelector("tbody").innerHTML = containers.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.status)}</td><td>${duration(c.uptime_seconds)}</td><td>${c.restarts ?? "Unavailable"}</td><td>${esc(c.health)}</td><td>${esc(c.last_error || "—")}</td></tr>`).join("");
+  } catch {
+    setDot("api", "down", "API unreachable");
+    setDot("db", "down", "Database unknown");
+    $("health-cards").innerHTML = `<div class="empty">Health endpoint unavailable.</div>`;
+  }
+  $("pill-updated").textContent = "Updated " + new Date().toISOString().slice(11, 19) + "Z";
+}
+
+function money(value, currency) {
+  if (value === null || value === undefined) return "—";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${Number(value).toFixed(2)} ${currency || ""}`.trim();
+}
+
+async function loadAccount() {
+  const wrap = $("account-cards");
+  const note = $("account-note");
+  let a;
+  try {
+    a = await getJSON("/api/account");
+  } catch {
+    wrap.innerHTML = `<div class="card broker"><div class="label">Account</div>
+      <div class="value">—</div><div class="sub">API unreachable</div></div>`;
+    return;
+  }
+
+  if (!a.available) {
+    accountCurrency = "";
+    wrap.innerHTML = `<div class="card broker"><div class="label">Account</div>
+      <div class="value">—</div><div class="sub">${esc(a.reason)}</div></div>`;
+    note.textContent = "Balance is read from Deriv, never derived from the trade journal.";
+    return;
+  }
+
+  const cur = a.currency || "";
+  accountCurrency = cur;
+  const cards = [
+    ["Balance", `${Number(a.balance).toFixed(2)} ${cur}`, "reported by Deriv", ""],
+    ["Equity", a.equity === null ? "—" : `${Number(a.equity).toFixed(2)} ${cur}`,
+      a.equity === null ? (a.equity_note || "not available") :
+      `balance + ${money(a.open_profit, cur)} open`, ""],
+    ["Currency", cur || "—", "account currency", ""],
+    ["Today's P/L", money(a.today_profit, cur), "since 00:00 UTC",
+      a.today_profit > 0 ? "pos" : a.today_profit < 0 ? "neg" : ""],
+    ["Total P/L", money(a.total_profit, cur), `since ${shortTime(a.tracking_since).slice(0, 10)}`,
+      a.total_profit > 0 ? "pos" : a.total_profit < 0 ? "neg" : ""],
+    ["Profit %", a.profit_percent === null ? "—" : `${a.profit_percent > 0 ? "+" : ""}${a.profit_percent}%`,
+      "against starting balance",
+      a.profit_percent > 0 ? "pos" : a.profit_percent < 0 ? "neg" : ""],
+    ["Starting balance", `${Number(a.starting_balance).toFixed(2)} ${cur}`, a.starting_balance_source, ""],
+    ["Last sync", shortTime(a.last_sync).slice(11) + "Z", shortTime(a.last_sync).slice(0, 10), ""],
+  ];
+  wrap.innerHTML = cards.map(([label, value, sub, cls]) =>
+    `<div class="card broker"><div class="label">${label}</div>
+     <div class="value ${cls}">${esc(value)}</div>
+     <div class="sub">${esc(sub)}</div></div>`).join("");
+
+  note.textContent =
+    `Broker figures, read from the Deriv account (${a.snapshots} snapshot${a.snapshots === 1 ? "" : "s"}). ` +
+    `"Total P/L" is the change since Watch Tower began recording, not since the account was opened. ` +
+    `These are not reconciled against the Performance figures below, which are calculated separately.`;
+}
+
+async function loadCards() {
+  const p = await getJSON("/api/performance?" + params());
+  const cards = [
+    ["Total trades", p.total_trades ?? 0],
+    ["Wins", p.wins ?? 0],
+    ["Losses", p.losses ?? 0],
+    ["Win rate", p.win_rate === null ? "—" : p.win_rate + "%"],
+    ["Net R", (p.net_r >= 0 ? "+" : "") + num(p.net_r, 2)],
+    ["Average R", p.average_r === null ? "—" : num(p.average_r, 3)],
+    ["Open / pending", p.open_or_pending ?? 0],
+  ];
+  $("perf-note").textContent =
+    "Counted from the trades Watch Tower recorded. Net R is a risk multiple, " +
+    "not currency, so it does not equal the account's profit above.";
+  $("cards").innerHTML = cards.map(([label, value]) => {
+    const cls = label === "Net R" && typeof value === "string"
+      ? (value.startsWith("+") ? "pos" : value.startsWith("-") ? "neg" : "") : "";
+    return `<div class="card"><div class="label">${label}</div>
+            <div class="value ${cls}">${esc(value)}</div></div>`;
+  }).join("");
+}
+
+function confluenceOf(s) {
+  const parts = [];
+  if (s.liquidity_sweep === "YES") parts.push("sweep");
+  if (s.m15_structure === "YES") parts.push("M15");
+  if (s.m5_fvg === "YES") parts.push("FVG");
+  if (s.m5_order_block === "YES") parts.push("OB");
+  return parts.length ? parts.join(" + ") : "—";
+}
+
+async function loadSignals() {
+  const data = await getJSON("/api/signals?limit=25");
+  const body = $("signals").querySelector("tbody");
+  if (!data.items.length) {
+    body.innerHTML = `<tr><td colspan="8" class="empty">No active signals</td></tr>`;
+    return;
+  }
+  body.innerHTML = data.items.map((s) => `<tr>
+    <td>${shortTime(s.signal_time)}</td>
+    <td>${esc(s.symbol)}</td>
+    <td><span class="tag ${s.direction === "BULLISH" || s.direction === "UP" ? "up" : "down"}">${esc(s.direction ?? "—")}</span></td>
+    <td>${esc(s.timeframe ?? "—")}</td>
+    <td class="num">${num(s.score, 0)}</td>
+    <td>${s.ob_lower !== null && s.ob_upper !== null ? `OB ${num(s.ob_lower, 2)}–${num(s.ob_upper, 2)}` : "—"}</td>
+    <td>${esc(s.setup_id ?? "—")}</td>
+    <td><span class="tag pending">PENDING</span></td>
+  </tr>`).join("");
+}
+
+async function loadConfluences() {
+  const q = new URLSearchParams();
+  for (const [key, id] of Object.entries({symbol:"f-symbol", timeframe:"f-timeframe", direction:"f-direction", status:"c-status"})) if ($(id).value) q.set(key, $(id).value);
+  if ($("f-start").value) q.set("start", $("f-start").value);
+  if ($("f-end").value) q.set("end", $("f-end").value + "T23:59:59");
+  q.set("limit", PAGE); q.set("offset", confluenceOffset);
+  const data = await getJSON("/api/confluences?" + q.toString());
+  const body = $("confluences").querySelector("tbody");
+  if (!data.items.length) body.innerHTML = `<tr><td colspan="8" class="empty">No confluence history matches these filters.</td></tr>`;
+  else body.innerHTML = data.items.map((s) => `<tr><td>${shortTime(s.signal_time)}</td><td>${esc(s.symbol)}</td>
+    <td><span class="tag ${s.direction === "BULLISH" ? "up" : "down"}">${esc(s.direction ?? "—")}</span></td>
+    <td>${esc(s.timeframe ?? "—")}</td><td class="num">${num(s.score, 0)}</td>
+    <td>${esc(s.setup_id ?? "—")}</td><td>${confluenceOf(s)}</td><td><span class="tag">${esc(s.status ?? "—")}</span></td></tr>`).join("");
+  const from = data.total ? confluenceOffset + 1 : 0;
+  $("conf-range").textContent = `${from}–${Math.min(confluenceOffset + PAGE, data.total)} of ${data.total}`;
+  $("conf-prev").disabled = confluenceOffset === 0;
+  $("conf-next").disabled = confluenceOffset + PAGE >= data.total;
+}
+
+function eventQuery(severity) {
+  const q = new URLSearchParams();
+  const values = {instance:$('ef-instance').value,severity,component:$('ef-component').value,symbol:$('ef-symbol').value,timeframe:$('ef-timeframe').value,event_type:$('ef-type').value};
+  for (const [k,v] of Object.entries(values)) if (v) q.set(k,v);
+  if ($('ef-start').value) q.set('start',$('ef-start').value);
+  if ($('ef-end').value) q.set('end',$('ef-end').value+'T23:59:59');
+  q.set('limit','100'); return q.toString();
+}
+
+function renderEvents(id, items, emptyText) {
+  const body = $(id).querySelector('tbody');
+  if (!items.length) { body.innerHTML = `<tr><td colspan="6" class="empty">${emptyText}</td></tr>`; return; }
+  body.innerHTML = items.map((e) => `<tr class="event-row"><td>${shortTime(e.occurred_at)}</td><td><span class="tag ${e.severity === 'ERROR' ? 'loss' : e.severity === 'WARN' ? 'pending' : ''}">${esc(e.severity)}</span></td><td>${esc(e.component)}</td><td>${esc(e.event_type)}</td><td>${esc([e.symbol,e.timeframe].filter(Boolean).join(' / ') || '—')}</td><td>${esc(e.message || e.reason || '—')}${e.reason ? `<div class="event-detail">reason=${esc(e.reason)}</div>` : ''}${e.details && Object.keys(e.details).length ? `<div class="event-detail">${esc(JSON.stringify(e.details))}</div>` : ''}</td></tr>`).join('');
+}
+
+async function loadEvents() {
+  try {
+    const recent = await getJSON('/api/events?limit=50');
+    renderEvents('events', recent.items, 'No operational events recorded yet.');
+    const severity = $('ef-severity').value;
+    let data;
+    if (severity === 'issues') {
+      const [errors,warnings] = await Promise.all([getJSON('/api/events?'+eventQuery('ERROR')),getJSON('/api/events?'+eventQuery('WARN'))]);
+      const map = new Map([...errors.items,...warnings.items].map((e)=>[e.event_id,e]));
+      data = {items:[...map.values()].sort((a,b)=>String(b.occurred_at).localeCompare(String(a.occurred_at)))};
+    } else data = await getJSON('/api/events?'+eventQuery(severity));
+    renderEvents('errors', data.items, severity === 'issues' ? 'No recent warnings or errors.' : 'No events match these filters.');
+  } catch {
+    renderEvents('events', [], 'Operational event service unavailable.');
+    renderEvents('errors', [], 'Operational event service unavailable.');
+  }
+}
+
+async function loadEventFilters() {
+  try {
+    const f=await getJSON('/api/event-filters');
+    const fill=(id,values)=>{const el=$(id),cur=el.value,first=el.options[0].outerHTML;el.innerHTML=first+values.map(v=>`<option value="${esc(v)}" ${v===cur?'selected':''}>${esc(v)}</option>`).join('');};
+    fill('ef-component',f.components);fill('ef-symbol',f.symbols);fill('ef-timeframe',f.timeframes);fill('ef-type',f.event_types);
+  } catch { /* the fixed filters remain available */ }
+}
+
+async function loadTrades() {
+  const data = await getJSON("/api/trades?" + params({ limit: PAGE, offset }));
+  const body = $("trades").querySelector("tbody");
+  if (!data.items.length) {
+    body.innerHTML = `<tr><td colspan="7" class="empty">No trades match these filters.</td></tr>`;
+  } else {
+    body.innerHTML = data.items.map((t) => {
+      const settled = ["WIN", "LOSS", "BREAKEVEN"].includes(t.status);
+      const cls = t.status === "WIN" ? "win" : t.status === "LOSS" ? "loss" : "pending";
+      const pnl = t.final_pl ?? t.profit;
+      const pnlClass = pnl > 0 ? "pos" : pnl < 0 ? "neg" : "";
+      return `<tr>
+        <td>${shortTime(t.signal_time)}</td>
+        <td>${esc(t.symbol)}</td>
+        <td><span class="tag ${t.direction === "UP" ? "up" : "down"}">${esc(t.direction ?? "—")}</span></td>
+        <td class="num">${num(t.entry)}</td>
+        <td class="num">${t.exit_price === null || t.exit_price === undefined ? "—" : num(t.exit_price)}</td>
+        <td><span class="tag ${cls}">${esc(settled ? t.status : (t.status ?? "—"))}</span></td>
+        <td class="num ${pnlClass}">${pnl === null || pnl === undefined ? "—" : esc(money(Number(pnl), accountCurrency))}</td>
+      </tr>`;
+    }).join("");
+  }
+  const from = data.total ? offset + 1 : 0;
+  $("range").textContent = `${from}–${Math.min(offset + PAGE, data.total)} of ${data.total}`;
+  $("prev").disabled = offset === 0;
+  $("next").disabled = offset + PAGE >= data.total;
+}
+
+async function loadFilters() {
+  try {
+    const f = await getJSON("/api/filters");
+    const fill = (id, values) => {
+      const select = $(id);
+      const current = select.value;
+      select.innerHTML = `<option value="">All</option>` +
+        values.map((v) => `<option ${v === current ? "selected" : ""}>${esc(v)}</option>`).join("");
+    };
+    fill("f-symbol", f.symbols); fill("f-timeframe", f.timeframes);
+    fill("f-direction", f.directions); fill("f-result", f.results);
+  } catch { /* filters are a convenience; the page still works without them */ }
+}
+
+async function refresh() {
+  await Promise.allSettled([loadStatus(), loadAccount(), loadCards(), loadSignals(), loadConfluences(), loadEvents()]);
+  await loadTrades();
+}
+
+$("apply").onclick = () => { offset = 0; confluenceOffset = 0; refresh(); };
+$("clear").onclick = () => {
+  ["f-symbol", "f-timeframe", "f-direction", "f-result", "f-start", "f-end", "c-status"].forEach((id) => ($(id).value = ""));
+  offset = 0; confluenceOffset = 0; refresh();
+};
+$("prev").onclick = () => { offset = Math.max(0, offset - PAGE); loadTrades(); };
+$("next").onclick = () => { offset += PAGE; loadTrades(); };
+$("conf-prev").onclick = () => { confluenceOffset = Math.max(0, confluenceOffset - PAGE); loadConfluences(); };
+$("conf-next").onclick = () => { confluenceOffset += PAGE; loadConfluences(); };
+$("ef-apply").onclick = loadEvents;
+$("refresh").onclick = refresh;
+
+Promise.all([loadFilters(), loadEventFilters()]).then(refresh);
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from deriv_client import DerivClient
 from candle_engine import CandleEngine
 from models import Candle, Timeframe
@@ -62,12 +64,16 @@ class MarketDataService:
             self.order_block_detectors,
             self.liquidity_sweep_detectors,
             self.bos_detectors,
+            self.liquidity_detectors,
         )
 
         self.last_confluence_signal = None
 
     async def initialize(self):
         await self.client.connect()
+
+        candles_by_timeframe = {}
+        initialized_at = datetime.now(timezone.utc)
 
         for timeframe, engine in self.engines.items():
             candles = await self.client.get_candles(
@@ -76,13 +82,61 @@ class MarketDataService:
                 count=100,
             )
 
-            engine.initialize(candles)
+            # Deriv's latest candle can still be forming. Only closed bars
+            # belong in historical state reconstruction.
+            candles = [
+                candle
+                for candle in candles
+                if self.candle_completion_time(candle) <= initialized_at
+            ]
+            candles_by_timeframe[timeframe] = candles
 
-            self.structures[timeframe] = MarketStructure(candles)
+            # Keep history available to callers, but do not seed the last
+            # historical candle as CandleEngine.current_candle. The detector
+            # state below has already consumed it; seeding it would emit that
+            # same candle again on the first live tick.
+            engine.initialize(candles, seed_latest_as_current=False)
+
+            # Seed the two bars needed to confirm the next swing, then replay
+            # all subsequent bars through the same incremental live path.
+            self.structures[timeframe] = MarketStructure(candles[:2])
 
             print(
                 f"Loaded {len(candles)} "
                 f"{timeframe.name} candles"
+            )
+
+        self._replay_historical_state(candles_by_timeframe)
+        replayed = sum(len(candles) for candles in candles_by_timeframe.values())
+        print(
+            f"Reconstructed strategy state from {replayed} closed historical candles"
+        )
+
+    @staticmethod
+    def candle_completion_time(candle):
+        return candle.timestamp + timedelta(seconds=candle.timeframe.value)
+
+    def _replay_historical_state(self, candles_by_timeframe):
+        """Rebuild stateful detectors chronologically without evaluating trades."""
+        timeframe_order = {
+            timeframe: index
+            for index, timeframe in enumerate(self.engines)
+        }
+        replay = []
+
+        for timeframe, candles in candles_by_timeframe.items():
+            # The first two candles seeded MarketStructure above. Live
+            # processing starts on the third bar, when a swing can first be
+            # confirmed. The seeded bars still remain available to FVG logic.
+            for candle in candles[2:]:
+                replay.append((self.candle_completion_time(candle), timeframe, candle))
+
+        replay.sort(key=lambda item: (item[0], timeframe_order[item[1]]))
+
+        for _, _, candle in replay:
+            self.process_completed_candle(
+                candle,
+                emit_signal=False,
             )
 
     def get_candles(self, timeframe: Timeframe) -> list[Candle]:
@@ -100,7 +154,13 @@ class MarketDataService:
         return structure.get_state()
 
 
-    def process_completed_candle(self, completed_candle):
+    def process_completed_candle(
+        self,
+        completed_candle,
+        *,
+        evaluate_confluence: bool = True,
+        emit_signal: bool = True,
+    ):
         timeframe = completed_candle.timeframe
 
         structure = self.structures[timeframe]
@@ -139,13 +199,11 @@ class MarketDataService:
         # BOS / CHOCH
         bos_detector = self.bos_detectors[timeframe]
 
-        state = structure.get_state()
-
         bos = bos_detector.check(
             completed_candle,
             structure.swing_highs,
             structure.swing_lows,
-            state.bias,
+            structure.get_bias(),
         )
 
         if bos:
@@ -154,26 +212,32 @@ class MarketDataService:
                 structure.candles,
             )
 
-        # Confluence
-        analysis = self.confluence_engine.analyze()
+        # Confluence is evaluated only when an M5 candle completes.
+        if timeframe != Timeframe.M5 or not evaluate_confluence:
+            return None
+
+        analysis = self.confluence_engine.analyze(
+            completed_candle.timestamp + timedelta(seconds=timeframe.value)
+        )
 
         if analysis:
             
             signal_key = analysis["setup_id"]
 
             if signal_key != self.last_confluence_signal:
-                print(
-                    f"CONFLUENCE "
-                    f"{analysis['direction'].value.upper()} "
-                    f"SCORE {analysis['score']}"
-                )
-
-                for reason in analysis["reasons"]:
-                    print(f"  ✓ {reason}")
-
                 self.last_confluence_signal = signal_key
 
-                return analysis
+                if emit_signal:
+                    print(
+                        f"CONFLUENCE "
+                        f"{analysis['direction'].value.upper()} "
+                        f"SCORE {analysis['score']}"
+                    )
+
+                    for reason in analysis["reasons"]:
+                        print(f"  ✓ {reason}")
+
+                    return analysis
 
         return None
     
@@ -190,5 +254,3 @@ class MarketDataService:
                     self.process_completed_candle(
                         completed_candle
                     )
-
-                

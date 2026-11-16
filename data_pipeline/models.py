@@ -12,7 +12,7 @@ class Tick:
     bid: float
     ask: float
     timestamp: datetime
-    pip_size: int
+    pip_size: int | None
 
 
 class Timeframe(Enum):

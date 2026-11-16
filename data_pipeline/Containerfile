@@ -1,0 +1,43 @@
+# Watch Tower runtime image.
+#
+# The image carries Python and the dependencies only. The application code
+# and its state arrive as a bind mount at /app, because Watch Tower writes
+# trade_history.csv and confluence_history.csv next to its own modules
+# (Path(__file__).with_name(...)) and replaces them atomically. Baking the
+# code in and mounting those files individually would break that rename,
+# and moving the files would mean changing trading code, which is out of
+# scope for deployment.
+#
+# Multi-arch base: this builds natively on ARM64 (Ampere A1).
+FROM docker.io/library/python:3.12-slim
+
+# Unbuffered output so every print() reaches the journal immediately, and
+# no .pyc files written into the mounted source tree.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
+# Watch Tower timestamps everything explicitly in UTC
+# (datetime.now(timezone.utc)), so the container stays UTC and the stored
+# history is unambiguous wherever it is read.
+ENV TZ=UTC
+
+WORKDIR /app
+
+# Dependencies change far less often than the code, so they are their own
+# layer and a code change never triggers a reinstall.
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
+
+# Run as a non-root user. The uid matches the host's opc user so files
+# written into the bind mount stay owned by opc.
+RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin watchtower
+USER watchtower
+
+# The container is healthy while the trader is still PID 1. Read straight
+# from /proc: the slim image has no pgrep, and a healthcheck that depends
+# on a binary that is not installed silently reports failure forever.
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import sys; sys.exit(0 if 'live_trader.py' in open('/proc/1/cmdline').read() else 1)"
+
+CMD ["python", "live_trader.py"]

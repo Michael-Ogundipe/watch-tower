@@ -1,0 +1,31 @@
+# Watch Tower dashboard API.
+#
+# Read-only over the trading tables: it never trades and never writes to
+# signals or trades. Kept separate from the trader image so the trading
+# container carries no web dependencies.
+FROM docker.io/library/python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TZ=UTC
+
+WORKDIR /srv
+
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
+
+COPY app.py /srv/app.py
+COPY identity.py /srv/identity.py
+COPY semantics.py /srv/semantics.py
+COPY static /srv/static
+
+RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin api
+USER api
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=8s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

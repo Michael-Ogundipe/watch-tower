@@ -1,0 +1,134 @@
+# Watch Tower stack: the trader, its database, and the dashboard API.
+#
+# Run with podman-compose on the VPS (Oracle Linux 9 has no Docker). The
+# systemd unit deploy/watchtower-stack.service brings this up at boot.
+#
+#   podman-compose --env-file .env.vps up -d
+#   podman-compose ps
+#   podman-compose down
+#
+# Only the dashboard port is published. PostgreSQL stays on the internal
+# network and is never reachable from outside the host.
+
+services:
+
+  postgres:
+    image: docker.io/library/postgres:16-alpine
+    container_name: watchtower-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Keeps the data directory one level down, so the volume can be
+      # mounted without fighting Postgres about directory ownership.
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # No ports: the database is reachable only from the other services.
+    networks: [watchtower]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  watchtower:
+    image: localhost/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    # The trading process, unchanged. This is the production entry point.
+    command: ["python", "live_trader.py"]
+    working_dir: /app
+    env_file: [.env.vps]
+    environment:
+      INSTANCE_ID: vps
+      INSTANCE_PROCESS: trader
+      INSTANCE_ENV_PRELOADED: "1"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+    volumes:
+      # The whole project: the trader writes its CSV journals next to its
+      # own modules and replaces them atomically, so code and state share
+      # one mount. SELinux is enforcing, so the mount needs a label, and
+      # it must be :z (shared) not :Z (private): two containers mount this
+      # same path, and a private label would relabel it for whichever
+      # started last, locking the other one out of its own code.
+      - .:/app:z
+    networks: [watchtower]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  balance:
+    # Reads the broker's own balance, equity and open positions on a timer
+    # and stores each reading. It places no orders and shares no state with
+    # the trader; it only ever reads from Deriv.
+    image: localhost/watchtower:latest
+    container_name: watchtower-balance
+    restart: unless-stopped
+    command: ["python", "balance_poller.py"]
+    working_dir: /app
+    env_file: [.env.vps]
+    environment:
+      INSTANCE_ID: vps
+      INSTANCE_PROCESS: balance
+      INSTANCE_ENV_PRELOADED: "1"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      WATCHTOWER_BALANCE_INTERVAL: "300"
+    volumes:
+      - .:/app:z
+    networks: [watchtower]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # The image's own check looks for live_trader.py, which is not what runs
+    # here, so this service checks for its own process instead.
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import sys; sys.exit(0 if 'balance_poller.py' in open('/proc/1/cmdline').read() else 1)\""]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  api:
+    image: localhost/watchtower-api:latest
+    build:
+      context: ./api
+      dockerfile: Containerfile
+    container_name: watchtower-api
+    restart: unless-stopped
+    environment:
+      INSTANCE_ID: vps
+      WATCHTOWER_OPS_DIR: /srv/ops-data
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # The only port reachable from outside the host.
+    ports:
+      - "8080:8000"
+    networks: [watchtower]
+    volumes:
+      # The API can read only the dedicated bounded operational event files.
+      - ./data/vps/ops:/srv/ops-data:ro,z
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)\""]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  # Named volume, so the database survives container removal and rebuilds.
+  postgres_data:
+
+networks:
+  watchtower:
+    driver: bridge

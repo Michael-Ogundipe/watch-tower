@@ -1,0 +1,66 @@
+# Watch Tower, run as a Podman container under systemd.
+#
+# Install:
+#   sudo cp deploy/watchtower.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now watchtower
+#
+# Why a plain unit rather than podman generate systemd: this keeps one
+# readable file that survives Podman upgrades, and the container is
+# recreated from scratch on every start so a half-dead container can never
+# linger.
+
+[Unit]
+Description=Watch Tower V1 - Deriv multi-symbol trading engine
+Documentation=file:///opt/watchtower/DEPLOYMENT.md
+# The network must be up before the Deriv WebSocket can be opened.
+After=network-online.target
+Wants=network-online.target
+# A crash loop should back off rather than hammer Deriv's API. These belong
+# to the unit, not the service: systemd ignores them under [Service].
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=opc
+Group=opc
+WorkingDirectory=/opt/watchtower
+
+# A stale container from an unclean shutdown would block the name, so the
+# start is always preceded by a removal that is allowed to fail.
+ExecStartPre=-/usr/bin/podman rm -f watchtower
+
+# --rm            the container is disposable; state lives in the bind mount
+# -v ...:Z        SELinux is Enforcing, so the mount needs a private label
+# --env-file      credentials are read at start, never baked into the image
+# --pull=never    run only the image built on this host, no surprise pulls
+# --memory 1g     memory is delegated to this user's cgroup, so it is
+#                 enforceable. There is deliberately no --cpus: the cpu
+#                 controller is not delegated to the user slice on this
+#                 host, and passing it makes the container exit 126.
+ExecStart=/usr/bin/podman run \
+    --rm \
+    --name watchtower \
+    --env-file /opt/watchtower/.env \
+    --volume /opt/watchtower:/app:Z \
+    --workdir /app \
+    --pull=never \
+    --log-driver journald \
+    --memory 1g \
+    localhost/watchtower:latest
+
+ExecStop=/usr/bin/podman stop --time 20 watchtower
+
+# Restart on crash and on clean exit alike: the trader should never stop
+# on its own, so any exit is a reason to come back.
+Restart=always
+RestartSec=10s
+
+# Everything the app prints goes to the journal, which rotates by size.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=watchtower
+
+[Install]
+WantedBy=multi-user.target

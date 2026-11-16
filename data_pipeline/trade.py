@@ -24,3 +24,8 @@ class Trade:
     status: TradeStatus = TradeStatus.PENDING
     exit: float | None = None
     exit_time: object | None = None
+    quality_score: float | None = None
+    quality_category: str | None = None
+    tp_source: str | None = None
+    potential_rr: float | None = None
+    result_r: float | None = None

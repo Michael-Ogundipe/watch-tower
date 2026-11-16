@@ -17,7 +17,7 @@ def parse_tick(data: dict) -> Tick:
         bid=tick["bid"],
         ask=tick["ask"],
         timestamp=parse_datetime(tick["epoch"]),
-        pip_size=tick["pip_size"],
+        pip_size=tick.get("pip_size"),
     )
 
 def parse_candles(
@@ -39,4 +39,3 @@ def parse_candles(
         )
         for candle in candles
     ]
-

@@ -7,6 +7,15 @@ from models import (
 
 
 class LiquidityDetector:
+    """
+    Incremental equivalent of the original liquidity detector.
+
+    MarketStructure only appends swing points, so rebuilding every cluster
+    from scratch on every candle is unnecessary. We keep the same
+    order-sensitive clustering algorithm and only process newly appended
+    swings. This changes execution cost, not strategy behavior.
+    """
+
     def __init__(
         self,
         timeframe: Timeframe,
@@ -16,91 +25,110 @@ class LiquidityDetector:
         self.tolerance = tolerance
         self.pools: list[LiquidityPool] = []
 
+        self._high_clusters = []
+        self._low_clusters = []
+        self._high_count = 0
+        self._low_count = 0
+
     def detect(
         self,
         swing_highs: list[SwingPoint],
         swing_lows: list[SwingPoint],
     ):
-        self.pools = []
+        # If a caller replaces/shrinks the source lists, rebuild so the
+        # detector remains compatible with the original implementation.
+        rebuilt = False
+        if (
+            len(swing_highs) < self._high_count
+            or len(swing_lows) < self._low_count
+        ):
+            self._high_clusters = []
+            self._low_clusters = []
+            self._high_count = 0
+            self._low_count = 0
+            rebuilt = True
 
-        self._detect_equal_highs(swing_highs)
-        self._detect_equal_lows(swing_lows)
+        previous_high_count = self._high_count
+        previous_low_count = self._low_count
 
+        for swing in swing_highs[self._high_count:]:
+            self._add_to_clusters(
+                self._high_clusters,
+                swing,
+                LiquidityType.BUY_SIDE,
+                lambda point: point.candle.high,
+            )
+
+        for swing in swing_lows[self._low_count:]:
+            self._add_to_clusters(
+                self._low_clusters,
+                swing,
+                LiquidityType.SELL_SIDE,
+                lambda point: point.candle.low,
+            )
+
+        self._high_count = len(swing_highs)
+        self._low_count = len(swing_lows)
+
+        # Pools only change when MarketStructure appends a swing. Rebuilding
+        # the complete pool list on every replay candle was wasted work.
+        if rebuilt or self._high_count != previous_high_count or self._low_count != previous_low_count:
+            self.pools = self._build_pools()
         return self.pools
-
-
-    def _detect_equal_highs(self, swings: list[SwingPoint]):
-        self._cluster_swings(
-            swings=swings,
-            liquidity_type=LiquidityType.BUY_SIDE,
-            price_getter=lambda swing: swing.candle.high,
-        )
-
-
-    def _detect_equal_lows(self, swings: list[SwingPoint]):
-        self._cluster_swings(
-            swings=swings,
-            liquidity_type=LiquidityType.SELL_SIDE,
-            price_getter=lambda swing: swing.candle.low,
-        )
-
 
     def _is_near(self, first: float, second: float) -> bool:
         difference = abs(first - second)
+        return difference <= first * self.tolerance
 
-        return difference <= first * self.tolerance    
-
-
-    def _cluster_swings(
+    def _add_to_clusters(
         self,
-        swings: list[SwingPoint],
+        clusters,
+        swing: SwingPoint,
         liquidity_type: LiquidityType,
         price_getter,
     ):
-        clusters = []
-
-        for swing in swings:
-            price = price_getter(swing)
-
-            matching_cluster = None
-
-            for cluster in clusters:
-                cluster_price = cluster["price"]
-
-                if self._is_near(price, cluster_price):
-                    matching_cluster = cluster
-                    break
-
-            if matching_cluster:
-                matching_cluster["swings"].append(swing)
-
-                prices = [
-                    price_getter(point)
-                    for point in matching_cluster["swings"]
-                ]
-
-                matching_cluster["price"] = sum(prices) / len(prices)
-
-            else:
-                clusters.append(
-                    {
-                        "price": price,
-                        "swings": [swing],
-                    }
-                )
+        price = price_getter(swing)
 
         for cluster in clusters:
-            if len(cluster["swings"]) < 2:
-                continue
+            if self._is_near(price, cluster["price"]):
+                cluster["swings"].append(swing)
 
-            self.pools.append(
-                LiquidityPool(
-                    timeframe=self.timeframe,
-                    liquidity_type=liquidity_type,
-                    price=cluster["price"],
-                    swing_points=cluster["swings"],
+                # Preserve the original implementation's running-average
+                # cluster price exactly.
+                cluster["price"] = sum(
+                    price_getter(point)
+                    for point in cluster["swings"]
+                ) / len(cluster["swings"])
+
+                return
+
+        clusters.append(
+            {
+                "price": price,
+                "swings": [swing],
+            }
+        )
+
+    def _build_pools(self):
+        pools = []
+
+        # The original detector emits all high pools first, then all low
+        # pools. Keep that exact ordering.
+        for clusters, liquidity_type in (
+            (self._high_clusters, LiquidityType.BUY_SIDE),
+            (self._low_clusters, LiquidityType.SELL_SIDE),
+        ):
+            for cluster in clusters:
+                if len(cluster["swings"]) < 2:
+                    continue
+
+                pools.append(
+                    LiquidityPool(
+                        timeframe=self.timeframe,
+                        liquidity_type=liquidity_type,
+                        price=cluster["price"],
+                        swing_points=cluster["swings"],
+                    )
                 )
-            )    
 
-
-                    
+        return pools

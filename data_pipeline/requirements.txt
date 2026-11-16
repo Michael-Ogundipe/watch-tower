@@ -1,0 +1,6 @@
+websockets>=13.0
+requests>=2.31.0
+
+# Persistence sink: mirrors the CSV journals into PostgreSQL. The trader
+# keeps working if this cannot connect.
+psycopg[binary]>=3.2

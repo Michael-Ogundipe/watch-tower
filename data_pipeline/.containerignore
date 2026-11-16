@@ -1,0 +1,12 @@
+# The image only needs requirements.txt; everything else arrives as a
+# bind mount at runtime. Keeping the build context small also keeps
+# secrets and local junk out of it.
+.env
+.git/
+.venv/
+.vscode/
+__pycache__/
+*.py[cod]
+backtest_cache/
+*.csv
+*.zip

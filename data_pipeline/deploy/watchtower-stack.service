@@ -1,0 +1,46 @@
+# Watch Tower stack: trader, PostgreSQL and dashboard API.
+#
+# Replaces the single-container watchtower.service. Install with:
+#   sudo systemctl disable --now watchtower
+#   sudo cp deploy/watchtower-stack.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now watchtower-stack
+#
+# Rootless Podman needs the opc user manager running at boot, so lingering
+# must stay enabled:  sudo loginctl enable-linger opc
+
+[Unit]
+Description=Watch Tower stack (trader, database, dashboard)
+Documentation=file:///opt/watchtower/DEPLOYMENT.md
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=opc
+Group=opc
+WorkingDirectory=/opt/watchtower
+# podman-compose shells out to podman, which lives in /usr/bin.
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+# Bringing the stack down first makes a restart deterministic: no half-dead
+# container from a previous run can survive into the new one.
+ExecStartPre=-/usr/local/bin/podman-compose --env-file .env.vps down --timeout 20
+
+# Schema changes are applied before anything starts serving, and the
+# migration runner is idempotent, so this is safe on every boot.
+ExecStart=/usr/local/bin/podman-compose --env-file .env.vps up -d
+ExecStartPost=/bin/bash -c 'for i in $(seq 1 30); do /usr/bin/podman exec watchtower-db pg_isready -q && break; sleep 2; done; /usr/bin/podman exec watchtower python migrate.py'
+
+ExecStop=/usr/local/bin/podman-compose --env-file .env.vps down --timeout 20
+
+TimeoutStartSec=600
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=watchtower-stack
+
+[Install]
+WantedBy=multi-user.target
